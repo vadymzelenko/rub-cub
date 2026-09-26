@@ -42,6 +42,7 @@ export default function ScanScreen({ navigate, algorithm }) {
         const video = await cameraCapture.start();
         if (disposed) return;
         videoWrapRef.current.appendChild(video);
+        try { await video.play(); } catch (e) { /* ignore */ }
         setReady(true);
         timer = setInterval(() => detect(video), 160);
       } catch (e) {

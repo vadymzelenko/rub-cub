@@ -29,9 +29,15 @@ export class CameraCapture {
         this.video.autoplay = true;
         this.video.playsInline = true;
         this.video.muted = true;
+        this.video.defaultMuted = true;
         this.video.setAttribute('playsinline', '');
+        this.video.setAttribute('muted', '');
+        // Инлайн-стили гарантируют видимость видео независимо от CSS-селекторов.
+        this.video.style.cssText =
+          'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#000;';
         this.video.srcObject = this.stream;
-        await this.video.play();
+        // Проиграем после вставки в DOM (вызываем play() повторно в сцене).
+        this.video.play().catch(() => {});
 
         return this.video;
       } catch (e) {

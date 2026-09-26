@@ -263,3 +263,13 @@ html, body {
   background-size: 26px 26px;
 }
 
+
+/* ---------- Переход между экранами ---------- */
+.app {
+  animation: screenIn 0.32s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
