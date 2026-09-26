@@ -18,7 +18,7 @@ export default function ScanScreen({ navigate, algorithm }) {
   const { t } = useT();
   const stageRef = useRef(null);
   const guideRef = useRef(null);
-  const videoWrapRef = useRef(null);
+  const videoRef = useRef(null);
 
   const [colors, setColors] = useState(Array(9).fill(null));
   const [captured, setCaptured] = useState({});
@@ -39,21 +39,26 @@ export default function ScanScreen({ navigate, algorithm }) {
 
     async function init() {
       try {
-        const video = await cameraCapture.start();
+        const stream = await cameraCapture.start();
         if (disposed) return;
-        videoWrapRef.current.appendChild(video);
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        video.setAttribute('muted', '');
+        video.muted = true;
         try { await video.play(); } catch (e) { /* ignore */ }
         setReady(true);
-        timer = setInterval(() => detect(video), 160);
+        timer = setInterval(detect, 160);
       } catch (e) {
         setError(t('scan.error') + ' (' + (e.message || e) + ')');
       }
     }
 
-    function detect(video) {
+    function detect() {
       if (pendingRef.current) return;
+      const video = videoRef.current;
       const stage = stageRef.current, guide = guideRef.current;
-      if (!stage || !guide || video.readyState < 2) return;
+      if (!video || !stage || !guide || video.readyState < 2) return;
 
       const sRect = stage.getBoundingClientRect();
       const gRect = guide.getBoundingClientRect();
@@ -137,7 +142,13 @@ export default function ScanScreen({ navigate, algorithm }) {
       <TopBar title={t('scan.title')} onBack={() => navigate('solverEntry')} />
 
       <div className="scan-stage" ref={stageRef}>
-        <div ref={videoWrapRef} style={{ position: 'absolute', inset: 0 }} />
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        />
 
         {!ready && !error && (
           <div className="scan-placeholder">
