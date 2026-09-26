@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import Cube3D from '../components/Cube3D.jsx';
 import { SOLVED_STATE } from '../cube/CubeModel.js';
@@ -19,8 +19,19 @@ const LESSONS = [
 export default function LearnScreen({ navigate }) {
   const { t } = useT();
   const [open, setOpen] = useState(null);
-  const [active, setActive] = useState(null); // id урока, чей куб показан
+  const [active, setActive] = useState(null);
   const cubeRef = useRef(null);
+  const genRef = useRef(0);
+  const playingRef = useRef(false);
+
+  useEffect(() => {
+    // При выборе урока сбрасываем куб и отменяем текущую анимацию.
+    genRef.current++;
+    playingRef.current = false;
+    if (active) cubeRef.current?.setState(SOLVED_STATE);
+  }, [active]);
+
+  useEffect(() => () => { genRef.current++; }, []);
 
   const toggle = (id) => {
     if (open === id) { setOpen(null); setActive(null); }
@@ -28,11 +39,19 @@ export default function LearnScreen({ navigate }) {
   };
 
   const play = async () => {
+    if (playingRef.current) return;
+    playingRef.current = true;
+    const myGen = ++genRef.current;
     const lesson = LESSONS.find((l) => l.id === active);
-    if (!lesson) return;
     cubeRef.current?.setState(SOLVED_STATE);
-    const moves = lesson.algo.trim().split(/\s+/);
-    for (const m of moves) await cubeRef.current?.playMove(m, 1200);
+    if (lesson) {
+      const moves = lesson.algo.trim().split(/\s+/);
+      for (const m of moves) {
+        if (genRef.current !== myGen) break;
+        await cubeRef.current?.playMove(m, 1200);
+      }
+    }
+    if (genRef.current === myGen) playingRef.current = false;
   };
 
   return (

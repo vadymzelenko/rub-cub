@@ -47,8 +47,9 @@ const Cube3D = forwardRef(function Cube3D({ size = 260 }, ref) {
     async playMove(move, duration = 1400) {
       const st = s.current;
       const def = MOVES[move[0]];
-      const times = move[1] === '2' ? 2 : move[1] === "'" ? 3 : 1;
-      const total = def.angle * times;
+      const times = move[1] === '2' ? 2 : 1;
+      const sign = move[1] === "'" ? -1 : 1;
+      const total = def.angle * sign * times;
       const layer = st.cubies.filter((c) => c[def.axis] === def.layer);
 
       const pivot = new THREE.Group();

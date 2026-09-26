@@ -3,7 +3,7 @@ import TopBar from '../components/TopBar.jsx';
 import { cameraCapture } from '../vision/CameraCapture.js';
 import { sampleFaceColors, CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
 import { validateState } from '../cube/CubeModel.js';
-import { FiCheck, FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 
 function drawCover(ctx, video, w, h) {
@@ -29,6 +29,8 @@ export default function ScanScreen({ navigate, algorithm }) {
   const capturedRef = useRef({});
   const pendingRef = useRef(false);
   const stableRef = useRef({ last: null, count: 0 });
+
+  const nextFace = FACE_ORDER.find((f) => !captured[f]);
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
@@ -66,19 +68,21 @@ export default function ScanScreen({ navigate, algorithm }) {
         y: (gRect.top - sRect.top) * dpr,
         size: gRect.width * dpr,
       });
+
+      // Центр фиксирован — не сканируем его, он определяет грань.
+      const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
+      if (face) cols[4] = face;
       setColors(cols);
+      if (!face) return;
 
       const key = cols.join('');
       const st = stableRef.current;
       if (key === st.last) st.count++; else { st.last = key; st.count = 1; }
 
       if (st.count >= 3 && cols.every((c) => c)) {
-        const center = cols[4];
-        if (!capturedRef.current[center]) {
-          st.last = null; st.count = 0;
-          pendingRef.current = true;
-          setPending({ face: center, colors: [...cols] });
-        }
+        st.last = null; st.count = 0;
+        pendingRef.current = true;
+        setPending({ face, colors: [...cols] });
       }
     }
 
@@ -126,10 +130,6 @@ export default function ScanScreen({ navigate, algorithm }) {
     setCaptured({});
     pendingRef.current = false;
     setPending(null);
-  };
-
-  const remaining = FACE_ORDER.filter((f) => !captured[f]);
-
 
   return (
     <div className="app">
@@ -165,7 +165,7 @@ export default function ScanScreen({ navigate, algorithm }) {
         {pending && (
           <div className="confirm-overlay">
             <div className="confirm-card">
-              <div className="confirm-title">{t('scan.confirmTitle', { face: t('face.' + pending.face) })}</div>
+              <div className="confirm-title">{t('scan.confirmTitle')}</div>
               <div className="confirm-grid">
                 {pending.colors.map((c, i) => (
                   <button
@@ -187,21 +187,25 @@ export default function ScanScreen({ navigate, algorithm }) {
         )}
       </div>
 
-      <div className="row" style={{ marginTop: 14, justifyContent: 'center', gap: 8 }}>
+      <div className="row" style={{ marginTop: 14, justifyContent: 'center', gap: 10 }}>
         {FACE_ORDER.map((f) => (
-          <div key={f} className="status" style={{
-            minHeight: 0, padding: '4px 9px', borderRadius: 8,
-            border: '1px solid var(--border)', fontSize: 12,
-            color: captured[f] ? 'var(--success)' : 'var(--muted)',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            {captured[f] ? <FiCheck size={12} /> : null}{f}
-          </div>
+          <div key={f} style={{
+            width: 28, height: 28, borderRadius: '50%',
+            background: CUBE_COLORS[f],
+            border: '2px solid ' + (captured[f] ? 'var(--success)' : 'var(--border)'),
+            opacity: captured[f] ? 1 : 0.35,
+            transition: 'opacity 0.2s, border-color 0.2s',
+          }} />
         ))}
       </div>
 
-      <div className="status" style={{ marginTop: 10 }}>
-        {remaining.length === 0 ? t('scan.allDone') : t('scan.showFace', { face: t('face.' + remaining[0]) })}
+      <div className="status" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        {!nextFace ? t('scan.allDone') : (
+          <>
+            {t('scan.showFace')}
+            <span style={{ width: 18, height: 18, borderRadius: '50%', background: CUBE_COLORS[nextFace], border: '1px solid var(--border-strong)', flexShrink: 0 }} />
+          </>
+        )}
       </div>
 
       <div className="controls">
@@ -211,3 +215,5 @@ export default function ScanScreen({ navigate, algorithm }) {
     </div>
   );
 }
+
+  };
