@@ -1,0 +1,27 @@
+{
+  "name": "rubik-solver-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rubik's Cube scanner, solver (Kociemba / CFOP) and 3D visualizer. Built with Phaser 3 + Three.js, packaged via Capacitor for Android/iOS.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/camera": "^6.0.2"
+  }
+}
