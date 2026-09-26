@@ -65,8 +65,15 @@ export function applySceneHiDPI(scene) {
   const bw = Math.max(1, Math.round(w * dpr));     // вьюпорт в пикселях устройства
   const bh = Math.max(1, Math.round(h * dpr));
 
+  const zoomX = bw / w;
+  const zoomY = bh / h;
+
   cam.setSize(bw, bh);
-  cam.setZoom(bw / w, bh / h);
+  cam.setZoom(zoomX, zoomY);
+
+  // Phaser зумит камеру относительно её центра, а UI-миру нужен top-left
+  // [0,w]x[0,h] в вьюпорте [0,bw]x[0,bh]. Компенсируем сдвигом скролла.
+  cam.setScroll((w - bw) / 2, (h - bh) / 2);
 }
 
 /**
