@@ -139,6 +139,7 @@ export default function ScanScreen({ navigate, algorithm }) {
     setCaptured({});
     pendingRef.current = false;
     setPending(null);
+  };
 
   return (
     <div className="app">
@@ -240,5 +241,3 @@ export default function ScanScreen({ navigate, algorithm }) {
     </div>
   );
 }
-
-  };
