@@ -20,12 +20,12 @@ export const FACE_LABELS = { U: 'Верх', R: 'Право', F: 'Перёд', D:
 // снизу синяя (B), слева красная (R). Таблица согласована (это реальная развёртка),
 // поэтому подсказки остаются верными при переходах между гранями.
 export const FACE_NEIGHBORS = {
-  U: { top: 'F', right: 'L', bottom: 'B', left: 'R' },
-  D: { top: 'B', right: 'L', bottom: 'F', left: 'R' },
-  F: { top: 'D', right: 'L', bottom: 'U', left: 'R' },
-  B: { top: 'D', right: 'R', bottom: 'U', left: 'L' },
-  L: { top: 'D', right: 'B', bottom: 'U', left: 'F' },
-  R: { top: 'D', right: 'F', bottom: 'U', left: 'B' },
+  U: { top: 'B', right: 'R', bottom: 'F', left: 'L' },
+  D: { top: 'F', right: 'R', bottom: 'B', left: 'L' },
+  F: { top: 'U', right: 'R', bottom: 'D', left: 'L' },
+  B: { top: 'U', right: 'L', bottom: 'D', left: 'R' },
+  L: { top: 'U', right: 'F', bottom: 'D', left: 'B' },
+  R: { top: 'U', right: 'B', bottom: 'D', left: 'F' },
 };
 
 // Эталонные HSV-цвета (H: 0-360, S/V: 0-1).
