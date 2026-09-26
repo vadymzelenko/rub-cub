@@ -10,7 +10,6 @@ import { ScanReviewScene } from './scenes/ScanReviewScene.js';
 import { ManualInputScene } from './scenes/ManualInputScene.js';
 import { SolverScene } from './scenes/SolverScene.js';
 import { LearnScene } from './scenes/LearnScene.js';
-import { Cube3DScene } from './scenes/Cube3DScene.js';
 import { SettingsScene } from './scenes/SettingsScene.js';
 import { AboutScene } from './scenes/AboutScene.js';
 
@@ -52,7 +51,6 @@ const config = {
     ManualInputScene,
     SolverScene,
     LearnScene,
-    Cube3DScene,
     SettingsScene,
     AboutScene,
   ],

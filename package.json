@@ -13,8 +13,7 @@
     "cap:ios": "npx cap open ios"
   },
   "dependencies": {
-    "phaser": "^3.90.0",
-    "three": "^0.169.0"
+    "phaser": "^3.90.0"
   },
   "devDependencies": {
     "vite": "^5.4.0",

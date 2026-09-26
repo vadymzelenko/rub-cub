@@ -98,4 +98,10 @@ export class Button extends Phaser.GameObjects.Container {
   setLabel(text) {
     this.label.setText(text);
   }
+
+  setVariant(variant) {
+    this.variant = variant;
+    this.label.setColor(this._textColor());
+    this._draw();
+  }
 }

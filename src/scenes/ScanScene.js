@@ -77,8 +77,16 @@ export class ScanScene extends BaseScene {
       this._updateHint();
       this._startDetectionLoop();
     } catch (err) {
-      this.statusText.setText('Камера недоступна: ' + err.message);
+      this.statusText.setText('Камера недоступна');
       this.statusText.setColor(COLORS.dangerHex);
+      this.hintText.setText(
+        'Не удалось включить камеру.\n\n' +
+        '• Камера работает только по HTTPS или на localhost.\n' +
+        '• На телефоне открывайте приложение через HTTPS.\n\n' +
+        'Пока можно ввести кубик вручную:'
+      );
+      this.manualFallbackBtn.setLabel('Ввести вручную');
+      this.manualFallbackBtn.setVariant('primary');
     }
 
     this.events.once('shutdown', () => this._cleanup());

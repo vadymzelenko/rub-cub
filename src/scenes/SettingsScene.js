@@ -2,13 +2,20 @@ import { BaseScene } from './BaseScene.js';
 import { Card } from '../ui/Card.js';
 import { COLORS, FONT, SPACING } from '../ui/theme.js';
 
-const SETTINGS_ITEMS = [
-  { id: 'theme', title: 'Тема', subtitle: 'Тёмная', glyph: '◐' },
-  { id: 'language', title: 'Язык', subtitle: 'Русский', glyph: '文' },
-  { id: 'camera-calibration', title: 'Калибровка камеры', subtitle: 'Настроить эталонные цвета наклеек', glyph: '⎗' },
-  { id: 'move-notation', title: 'Нотация ходов', subtitle: 'Стандартная (U R F D L B)', glyph: '⌘' },
-  { id: 'animation-speed', title: 'Скорость анимации', subtitle: 'Обычная', glyph: '▶' },
-];
+// Простое хранилище настроек (без персистентности — можно позже подключить localStorage).
+export const settingsStore = {
+  theme: 0,          // 0 тёмная, 1 светлая
+  language: 0,       // 0 русский, 1 english
+  notation: 0,       // 0 стандартная
+  speed: 0,          // 0 обычная, 1 быстрая, 2 медленная
+};
+
+const OPTIONS = {
+  theme: ['Тёмная', 'Светлая'],
+  language: ['Русский', 'English'],
+  notation: ['Стандартная', 'Singmaster'],
+  speed: ['Обычная', 'Быстрая', 'Медленная'],
+};
 
 export class SettingsScene extends BaseScene {
   constructor() {
@@ -23,22 +30,60 @@ export class SettingsScene extends BaseScene {
     const cx = width / 2;
     const cardWidth = Math.min(380, width - SPACING.lg * 2);
 
-    SETTINGS_ITEMS.forEach((item, i) => {
-      new Card(this, cx, this.contentTop + 50 + i * 72, {
+    this.cards = {};
+
+    const items = [
+      { id: 'theme', glyph: '◐', title: 'Тема' },
+      { id: 'language', glyph: '文', title: 'Язык' },
+      { id: 'notation', glyph: '⌘', title: 'Нотация ходов' },
+      { id: 'speed', glyph: '▶', title: 'Скорость анимации' },
+    ];
+
+    items.forEach((item, i) => {
+      const card = new Card(this, cx, this.contentTop + 50 + i * 72, {
         width: cardWidth,
         height: 62,
         glyph: item.glyph,
         title: item.title,
-        subtitle: item.subtitle,
-        onClick: () => this._openSetting(item.id),
+        subtitle: OPTIONS[item.id][settingsStore[item.id]],
+        onClick: () => this._cycle(item.id),
       });
+      this.cards[item.id] = card;
     });
+
+    this.statusText = this.uiText(cx, this.scale.height - this.safeBottom - 40, '', {
+      fontFamily: FONT.family, fontSize: `${FONT.sizes.xs}px`, color: COLORS.mutedHex,
+    }).setOrigin(0.5);
+
+    this._applyTheme();
   }
 
-  _openSetting(id) {
-    // TODO: подэкраны настроек (переключатель темы применяет COLORS-профиль,
-    // язык — подключает i18n/ru.js или i18n/en.js, калибровка камеры открывает
-    // отдельный флоу для пересъёмки REFERENCE_HSV под конкретный кубик/освещение).
-    console.log('Открыть настройку:', id);
+  _cycle(id) {
+    const opts = OPTIONS[id];
+    settingsStore[id] = (settingsStore[id] + 1) % opts.length;
+    this.cards[id].subtitleText.setText(opts[settingsStore[id]]);
+
+    if (id === 'theme') this._applyTheme();
+
+    this.statusText.setText(`${this._title(id)}: ${opts[settingsStore[id]]}`);
+    this._flashStatus();
+  }
+
+  _title(id) {
+    return { theme: 'Тема', language: 'Язык', notation: 'Нотация', speed: 'Скорость' }[id];
+  }
+
+  _applyTheme() {
+    // Лёгкая смена фона как наглядный отклик (полный ре-темминг — отдельная задача).
+    const light = settingsStore.theme === 1;
+    const bg = light ? '#F5F5F5' : COLORS.bgHex;
+    this.cameras.main.setBackgroundColor(bg);
+    document.body.style.background = bg;
+  }
+
+  _flashStatus() {
+    this.statusText.setColor(COLORS.accentHex);
+    this.time.delayedCall(800, () => this.statusText.setColor(COLORS.mutedHex));
   }
 }
+

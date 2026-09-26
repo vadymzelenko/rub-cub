@@ -40,12 +40,12 @@ export const FONT = {
   family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
   mono: 'JetBrains Mono, ui-monospace, monospace',
   sizes: {
-    xs: 12,
-    sm: 14,
-    base: 16,
-    lg: 20,
-    xl: 26,
-    xxl: 34,
+    xs: 13,
+    sm: 15,
+    base: 17,
+    lg: 22,
+    xl: 28,
+    xxl: 36,
   },
 };
 

@@ -43,8 +43,7 @@ export class LearnScene extends BaseScene {
   }
 
   _openLesson(id) {
-    // TODO: отдельная сцена LessonDetailScene с 3D-демонстрацией шага
-    // (переиспользует CubeRenderer3D в режиме "показ конкретного алгоритма в цикле").
+    // TODO: отдельная сцена LessonDetailScene с показом конкретного шага.
     console.log('Открыть урок:', id);
   }
 }

@@ -1,10 +1,13 @@
 import { BaseScene } from './BaseScene.js';
 import { Button } from '../ui/Button.js';
 import { COLORS, FONT, SPACING } from '../ui/theme.js';
-import { CubeRenderer3D } from '../cube/CubeRenderer3D.js';
 import { kociembaSolver } from '../solvers/kociemba.js';
 import { cfopSolver } from '../solvers/cfop.js';
 
+/**
+ * Экран сборки: показывает последовательность ходов и позволяет листать её.
+ * 3D-визуализация вырезана — вместо неё крупный текущий ход и лента ходов.
+ */
 export class SolverScene extends BaseScene {
   constructor() {
     super('Solver');
@@ -29,30 +32,25 @@ export class SolverScene extends BaseScene {
       fontFamily: FONT.family, fontSize: `${FONT.sizes.sm}px`, color: COLORS.mutedHex,
     }).setOrigin(0.5);
 
-    this.moveText = this.uiText(cx, height - this.safeBottom - 170, '', {
-      fontFamily: FONT.mono, fontSize: `${FONT.sizes.lg}px`, color: COLORS.textHex, fontStyle: '600',
+    this.moveText = this.uiText(cx, this.contentTop + SPACING.xl + 26, '', {
+      fontFamily: FONT.mono, fontSize: '34px', color: COLORS.textHex, fontStyle: '600',
     }).setOrigin(0.5);
 
-    this.counterText = this.uiText(cx, height - this.safeBottom - 138, '', {
+    this.counterText = this.uiText(cx, this.contentTop + SPACING.xl + 72, '', {
       fontFamily: FONT.family, fontSize: `${FONT.sizes.xs}px`, color: COLORS.mutedHex,
     }).setOrigin(0.5);
 
-    // 3D-канвас монтируется поверх Phaser в #three-root (interactive для orbit-контролов)
-    const threeRoot = document.getElementById('three-root');
-    threeRoot.classList.add('interactive');
-    document.getElementById('phaser-root').style.background = 'transparent';
-    this.renderer3D = new CubeRenderer3D(threeRoot);
-    this.renderer3D.setState(this.faceletState);
-    this.renderer3D.startRenderLoop();
+    this.movesText = this.uiText(cx, this.contentTop + 150, '', {
+      fontFamily: FONT.mono, fontSize: `${FONT.sizes.sm}px`, color: COLORS.textHex,
+      align: 'center', wordWrap: { width: width - SPACING.lg * 2 }, lineSpacing: 6,
+    }).setOrigin(0.5, 0);
 
-    this._buildTransportControls(cx, height - this.safeBottom - 70);
-
-    this.events.once('shutdown', () => this._cleanup());
+    this._buildControls(cx, height - this.safeBottom - 56);
 
     await this._computeSolution();
   }
 
-  _buildTransportControls(cx, y) {
+  _buildControls(cx, y) {
     const gap = 60;
     new Button(this, cx - gap * 2, y, { label: '⏮', width: 48, height: 48, variant: 'secondary', onClick: () => this._toStep(0) });
     new Button(this, cx - gap, y, { label: '‹', width: 48, height: 48, variant: 'secondary', onClick: () => this._step(-1) });
@@ -66,39 +64,35 @@ export class SolverScene extends BaseScene {
       const solver = this.algorithm === 'cfop' ? cfopSolver : kociembaSolver;
       const result = await solver.solve(this.faceletState);
       this.moves = (result.moveString || '').trim().split(/\s+/).filter(Boolean);
-      this.statusText.setText(`Решение найдено: ${this.moves.length} ходов`);
-      this._updateMoveDisplay();
+      this.statusText.setText(`Решение: ${this.moves.length} ходов`);
+      this._updateDisplay();
     } catch (err) {
       this.statusText.setText('Решатель пока не подключён');
       this.statusText.setColor(COLORS.dangerHex);
-      this.moveText.setText(err.message.includes('не подключён') ? 'Заглушка: подключите min2phase.js' : err.message);
+      this.movesText.setText(
+        'Ввод кубика работает.\nДля расчёта решения нужно подключить движок решателя (например, min2phase.js).'
+      );
     }
   }
 
-  _updateMoveDisplay() {
-    const current = this.moves[this.currentStep] || '—';
-    this.moveText.setText(current);
+  _updateDisplay() {
+    this.moveText.setText(this.moves[this.currentStep] || '—');
     this.counterText.setText(`${this.currentStep} / ${this.moves.length}`);
+    const from = Math.max(0, this.currentStep - 4);
+    const to = Math.min(this.moves.length, this.currentStep + 5);
+    this.movesText.setText(this.moves.slice(from, to).join(' '));
   }
 
-  async _step(dir) {
-    if (this.renderer3D._animating) return;
+  _step(dir) {
     const next = this.currentStep + dir;
     if (next < 0 || next > this.moves.length) return;
-
-    if (dir > 0 && this.moves[this.currentStep]) {
-      await this.renderer3D.playMove(this.moves[this.currentStep]);
-    }
-    // TODO: обратный ход (dir < 0) требует инверсии хода и обратного проигрывания анимации
-
     this.currentStep = next;
-    this._updateMoveDisplay();
+    this._updateDisplay();
   }
 
   _toStep(step) {
     this.currentStep = Phaser.Math.Clamp(step, 0, this.moves.length);
-    this._updateMoveDisplay();
-    // TODO: пересчитать 3D-состояние куба напрямую в целевой шаг без анимации промежуточных ходов
+    this._updateDisplay();
   }
 
   _togglePlay() {
@@ -109,8 +103,8 @@ export class SolverScene extends BaseScene {
 
   async _playLoop() {
     while (this.playing && this.currentStep < this.moves.length) {
-      await this._step(1);
-      await new Promise(r => this.time.delayedCall(300, r));
+      this._step(1);
+      await new Promise(r => this.time.delayedCall(400, r));
     }
     this.playing = false;
     this.playBtn.setLabel('▶');
@@ -123,9 +117,6 @@ export class SolverScene extends BaseScene {
 
   _cleanup() {
     this.playing = false;
-    this.renderer3D?.dispose();
-    const threeRoot = document.getElementById('three-root');
-    threeRoot.classList.remove('interactive');
-    document.getElementById('phaser-root').style.background = '';
   }
 }
+

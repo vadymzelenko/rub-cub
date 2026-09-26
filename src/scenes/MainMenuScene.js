@@ -5,7 +5,6 @@ import { COLORS, FONT, SPACING } from '../ui/theme.js';
 const MENU_ITEMS = [
   { key: 'SolverEntry', glyph: '◱', title: 'Собрать кубик', subtitle: 'Скан камерой или ручной ввод' },
   { key: 'Learn', glyph: '◇', title: 'Обучение', subtitle: 'Разбор по шагам, простой метод' },
-  { key: 'Cube3D', glyph: '◈', title: '3D-визуализатор', subtitle: 'Свободное вращение и тренировка' },
   { key: 'Settings', glyph: '⚙', title: 'Настройки', subtitle: 'Тема, язык, управление' },
   { key: 'About', glyph: 'ⓘ', title: 'О программе', subtitle: 'Автор, версия, источники' },
 ];

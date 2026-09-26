@@ -30,7 +30,7 @@ export class ManualInputScene extends BaseScene {
     this.faceColors.U[4] = 'U'; // центры зафиксированы и не редактируются
 
     this.selectedColor = 'U';
-    this.cellSize = this.isTablet ? 26 : 20;
+    this.cellSize = this.isTablet ? 30 : 24;
     this.cellGap = 2;
 
     this._buildNet(cx, this.contentTop + SPACING.md);
@@ -93,7 +93,7 @@ export class ManualInputScene extends BaseScene {
 
         if (!isCenter) {
           rect.setInteractive({ useHandCursor: true })
-            .on('pointerup', () => this._paintCell(face, i, rect));
+            .on('pointerdown', () => this._paintCell(face, i, rect));
         }
         this.cellRects[face].push(rect);
       }
@@ -112,7 +112,7 @@ export class ManualInputScene extends BaseScene {
       const swatch = this.uiRect(x, y, swatchSize, swatchSize, CUBE_COLORS[face])
         .setStrokeStyle(face === this.selectedColor ? 3 : 1, face === this.selectedColor ? COLORS.accent : COLORS.border)
         .setInteractive({ useHandCursor: true })
-        .on('pointerup', () => this._selectColor(face));
+        .on('pointerdown', () => this._selectColor(face));
       this.paletteSwatches[face] = swatch;
     });
   }
