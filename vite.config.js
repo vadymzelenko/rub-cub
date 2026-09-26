@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: './', // относительные пути — обязательно для Capacitor (файлы грузятся из file://)
+  base: './',
+  plugins: [react()],
   server: {
     host: true, // доступ с телефона в локальной сети для теста через getUserMedia (нужен https или localhost)
     port: 5173,
@@ -12,3 +14,4 @@ export default defineConfig({
     sourcemap: true,
   },
 });
+
