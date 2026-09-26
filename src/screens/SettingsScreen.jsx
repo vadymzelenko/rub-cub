@@ -1,47 +1,49 @@
 import { useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { FiChevronRight } from 'react-icons/fi';
-
-const OPTIONS = {
-  theme: ['Тёмная', 'Светлая'],
-  language: ['Русский', 'English'],
-  notation: ['Стандартная', 'Singmaster'],
-  speed: ['Обычная', 'Быстрая', 'Медленная'],
-};
-const TITLES = { theme: 'Тема', language: 'Язык', notation: 'Нотация ходов', speed: 'Скорость анимации' };
+import { useT, LANGS } from '../i18n.jsx';
 
 export default function SettingsScreen({ navigate }) {
-  const [values, setValues] = useState({ theme: 0, language: 0, notation: 0, speed: 0 });
-  const [status, setStatus] = useState('');
+  const { t, lang, setLang } = useT();
+  const [theme, setTheme] = useState(() => (document.documentElement.dataset.theme === 'light' ? 1 : 0));
+  const [notation, setNotation] = useState(0);
+  const [speed, setSpeed] = useState(0);
 
-  const cycle = (id) => {
-    setValues((v) => {
-      const next = (v[id] + 1) % OPTIONS[id].length;
-      if (id === 'theme') {
-        document.documentElement.dataset.theme = next === 1 ? 'light' : 'dark';
-      }
-      setStatus(`${TITLES[id]}: ${OPTIONS[id][next]}`);
-      return { ...v, [id]: next };
-    });
+  const langIndex = LANGS.findIndex((l) => l.id === lang);
+
+  const cycleTheme = () => {
+    const next = (theme + 1) % 2;
+    setTheme(next);
+    document.documentElement.dataset.theme = next === 1 ? 'light' : 'dark';
   };
+
+  const cycleLang = () => {
+    const next = LANGS[(langIndex + 1) % LANGS.length];
+    setLang(next.id);
+  };
+
+  const rows = [
+    { title: t('settings.theme'), value: t(theme === 0 ? 'theme.dark' : 'theme.light'), onClick: cycleTheme },
+    { title: t('settings.language'), value: LANGS[langIndex].label, onClick: cycleLang },
+    { title: t('settings.notation'), value: t(notation === 0 ? 'notation.std' : 'notation.singmaster'), onClick: () => setNotation((v) => (v + 1) % 2) },
+    { title: t('settings.speed'), value: t(['speed.normal', 'speed.fast', 'speed.slow'][speed]), onClick: () => setSpeed((v) => (v + 1) % 3) },
+  ];
 
   return (
     <div className="app">
-      <TopBar title="Настройки" onBack={() => navigate('home')} />
+      <TopBar title={t('settings.title')} onBack={() => navigate('home')} />
 
       <div className="menu" style={{ marginTop: 8 }}>
-        {Object.keys(OPTIONS).map((id) => (
-          <button key={id} className="card" onClick={() => cycle(id)}>
+        {rows.map((r) => (
+          <button key={r.title} className="card" onClick={r.onClick}>
             <span className="body">
-              <span className="title">{TITLES[id]}</span>
-              <div className="desc">{OPTIONS[id][values[id]]}</div>
+              <span className="title">{r.title}</span>
+              <div className="desc">{r.value}</div>
             </span>
             <FiChevronRight className="chevron" />
           </button>
         ))}
       </div>
-
-      <div className="status" style={{ marginTop: 16 }}>{status}</div>
     </div>
   );
 }

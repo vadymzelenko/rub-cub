@@ -1,19 +1,21 @@
 import { FiBox, FiBookOpen, FiSettings, FiInfo, FiChevronRight } from 'react-icons/fi';
+import { useT } from '../i18n.jsx';
 
 const MENU = [
-  { screen: 'solverEntry', icon: FiBox, title: 'Собрать кубик', desc: 'Скан камерой или ручной ввод' },
-  { screen: 'learn', icon: FiBookOpen, title: 'Обучение', desc: 'Разбор по шагам, простой метод' },
-  { screen: 'settings', icon: FiSettings, title: 'Настройки', desc: 'Тема, язык, управление' },
-  { screen: 'about', icon: FiInfo, title: 'О программе', desc: 'Версия и источники' },
+  { screen: 'solverEntry', icon: FiBox, title: 'menu.solve', desc: 'menu.solveDesc' },
+  { screen: 'learn', icon: FiBookOpen, title: 'menu.learn', desc: 'menu.learnDesc' },
+  { screen: 'settings', icon: FiSettings, title: 'menu.settings', desc: 'menu.settingsDesc' },
+  { screen: 'about', icon: FiInfo, title: 'menu.about', desc: 'menu.aboutDesc' },
 ];
 
 export default function HomeScreen({ navigate }) {
+  const { t } = useT();
   return (
     <div className="app">
       <div className="hero">
         <div className="logo"><FiBox size={24} /></div>
-        <h1>Кубик</h1>
-        <p className="subtitle">Сканируй, собирай, изучай</p>
+        <h1>{t('appTitle')}</h1>
+        <p className="subtitle">{t('appSubtitle')}</p>
       </div>
 
       <div className="menu">
@@ -21,15 +23,15 @@ export default function HomeScreen({ navigate }) {
           <button key={item.screen} className="card" onClick={() => navigate(item.screen)}>
             <span className="icon"><item.icon /></span>
             <span className="body">
-              <span className="title">{item.title}</span>
-              <div className="desc">{item.desc}</div>
+              <span className="title">{t(item.title)}</span>
+              <div className="desc">{t(item.desc)}</div>
             </span>
             <FiChevronRight className="chevron" />
           </button>
         ))}
       </div>
 
-      <div className="footer">Cube Solver · 0.2.0</div>
+      <div className="footer">VZstudio · Cube Solver</div>
     </div>
   );
 }

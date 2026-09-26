@@ -1,20 +1,24 @@
 import TopBar from '../components/TopBar.jsx';
+import { useT } from '../i18n.jsx';
 
 export default function AboutScreen({ navigate }) {
+  const { t } = useT();
   const lines = [
     ['Cube Solver', 'title'],
-    ['Версия 0.2.0', 'muted'],
+    [t('about.version'), 'muted'],
     ['', 'space'],
-    ['Движок: React + Vite', 'text'],
-    ['Решатель: Kociemba Two-Phase (cube.js)', 'text'],
-    ['Распознавание: камера + анализ цвета (без OpenCV)', 'text'],
+    [t('about.engine'), 'text'],
+    [t('about.solver'), 'text'],
+    [t('about.vision'), 'text'],
     ['', 'space'],
-    ['Упаковка: Capacitor (Android/iOS)', 'text'],
+    [t('about.pack'), 'text'],
+    ['', 'space'],
+    ['VZstudio', 'muted'],
   ];
 
   return (
     <div className="app">
-      <TopBar title="О программе" onBack={() => navigate('home')} />
+      <TopBar title={t('about.title')} onBack={() => navigate('home')} />
       <div style={{ textAlign: 'center', marginTop: 12 }}>
         {lines.map(([text, kind], i) =>
           kind === 'space' ? (

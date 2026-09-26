@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { cameraCapture } from '../vision/CameraCapture.js';
-import { sampleFaceColors, CUBE_COLORS, FACE_ORDER, FACE_LABELS } from '../vision/ColorDetector.js';
+import { sampleFaceColors, CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
 import { validateState } from '../cube/CubeModel.js';
 import { FiCheck, FiRefreshCw } from 'react-icons/fi';
+import { useT } from '../i18n.jsx';
 
-// Рисует видео в canvas с сохранением object-fit: cover (как в CSS).
 function drawCover(ctx, video, w, h) {
   const vw = video.videoWidth, vh = video.videoHeight;
   if (!vw || !vh) return;
   const scale = Math.max(w / vw, h / vh);
   const sw = w / scale, sh = h / scale;
-  const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+  ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
 }
 
 export default function ScanScreen({ navigate, algorithm }) {
+  const { t } = useT();
   const stageRef = useRef(null);
   const guideRef = useRef(null);
   const videoWrapRef = useRef(null);
@@ -24,8 +24,10 @@ export default function ScanScreen({ navigate, algorithm }) {
   const [captured, setCaptured] = useState({});
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [pending, setPending] = useState(null);
 
   const capturedRef = useRef({});
+  const pendingRef = useRef(false);
   const stableRef = useRef({ last: null, count: 0 });
 
   useEffect(() => {
@@ -41,45 +43,41 @@ export default function ScanScreen({ navigate, algorithm }) {
         setReady(true);
         timer = setInterval(() => detect(video), 160);
       } catch (e) {
-        setError('Камера недоступна (' + (e.message || 'нет доступа') + '). Нужен HTTPS или localhost.');
+        setError(t('scan.error'));
       }
     }
 
     function detect(video) {
+      if (pendingRef.current) return;
       const stage = stageRef.current, guide = guideRef.current;
       if (!stage || !guide || video.readyState < 2) return;
 
       const sRect = stage.getBoundingClientRect();
       const gRect = guide.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-
       const w = Math.max(1, Math.round(sRect.width * dpr));
       const h = Math.max(1, Math.round(sRect.height * dpr));
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       drawCover(ctx, video, w, h);
 
-      const rect = {
+      const cols = sampleFaceColors(canvas, {
         x: (gRect.left - sRect.left) * dpr,
         y: (gRect.top - sRect.top) * dpr,
         size: gRect.width * dpr,
-      };
-      const cols = sampleFaceColors(canvas, rect);
+      });
       setColors(cols);
 
-      // Автозахват: стабильные 2 кадра + центр = новая грань.
       const key = cols.join('');
       const st = stableRef.current;
-      if (key === st.last) st.count++;
-      else { st.last = key; st.count = 1; }
+      if (key === st.last) st.count++; else { st.last = key; st.count = 1; }
 
-      if (st.count >= 2 && cols.every((c) => c)) {
+      if (st.count >= 3 && cols.every((c) => c)) {
         const center = cols[4];
         if (!capturedRef.current[center]) {
-          capturedRef.current[center] = cols;
-          setCaptured({ ...capturedRef.current });
-          st.last = null;
-          st.count = 0;
+          st.last = null; st.count = 0;
+          pendingRef.current = true;
+          setPending({ face: center, colors: [...cols] });
         }
       }
     }
@@ -92,24 +90,50 @@ export default function ScanScreen({ navigate, algorithm }) {
     };
   }, []);
 
-  // Когда все 6 граней собраны — собираем facelet-строку и идём на проверку.
   useEffect(() => {
     if (Object.keys(captured).length === 6) {
       const facelet = FACE_ORDER.map((f) => captured[f].join('')).join('');
-      if (validateState(facelet).valid) {
-        navigate('review', { faceletState: facelet, algorithm });
-      } else {
-        capturedRef.current = {};
-        setCaptured({});
-      }
+      if (validateState(facelet).valid) navigate('review', { faceletState: facelet, algorithm });
+      else { capturedRef.current = {}; setCaptured({}); }
     }
   }, [captured, algorithm, navigate]);
 
+  const confirmPending = () => {
+    if (!pending) return;
+    capturedRef.current[pending.face] = pending.colors;
+    setCaptured({ ...capturedRef.current });
+    pendingRef.current = false;
+    setPending(null);
+  };
+
+  const cancelPending = () => {
+    stableRef.current = { last: null, count: 0 };
+    pendingRef.current = false;
+    setPending(null);
+  };
+
+  const editPendingCell = (i) => {
+    if (i === 4 || !pending) return;
+    setPending((p) => {
+      const colors = [...p.colors];
+      colors[i] = FACE_ORDER[(FACE_ORDER.indexOf(colors[i]) + 1) % FACE_ORDER.length];
+      return { ...p, colors };
+    });
+  };
+
+  const resetAll = () => {
+    capturedRef.current = {};
+    setCaptured({});
+    pendingRef.current = false;
+    setPending(null);
+  };
+
   const remaining = FACE_ORDER.filter((f) => !captured[f]);
+
 
   return (
     <div className="app">
-      <TopBar title="Скан кубика" onBack={() => navigate('solverEntry')} />
+      <TopBar title={t('scan.title')} onBack={() => navigate('solverEntry')} />
 
       <div className="scan-stage" ref={stageRef}>
         <div ref={videoWrapRef} style={{ position: 'absolute', inset: 0 }} />
@@ -117,24 +141,48 @@ export default function ScanScreen({ navigate, algorithm }) {
         {!ready && !error && (
           <div className="scan-placeholder">
             <div className="spinner" />
-            <div>Включаем камеру…</div>
+            <div>{t('scan.starting')}</div>
           </div>
         )}
 
         {error && (
           <div className="scan-placeholder">
             <div>{error}</div>
-            <button className="btn primary" onClick={() => navigate('manual', { algorithm })}>Ввести вручную</button>
+            <button className="btn primary" onClick={() => navigate('manual', { algorithm })}>{t('scan.manual')}</button>
           </div>
         )}
 
-        {ready && (
+        {ready && !pending && (
           <div className="scan-guide" ref={guideRef}>
             {colors.map((c, i) => (
               <div className="gcell" key={i}>
                 <div className="dot" style={{ background: c ? CUBE_COLORS[c] : 'rgba(255,255,255,0.12)' }} />
               </div>
             ))}
+          </div>
+        )}
+
+        {pending && (
+          <div className="confirm-overlay">
+            <div className="confirm-card">
+              <div className="confirm-title">{t('scan.confirmTitle', { face: t('face.' + pending.face) })}</div>
+              <div className="confirm-grid">
+                {pending.colors.map((c, i) => (
+                  <button
+                    key={i}
+                    className={'confirm-cell' + (i === 4 ? ' locked' : '')}
+                    style={{ background: CUBE_COLORS[c] }}
+                    onClick={() => editPendingCell(i)}
+                    disabled={i === 4}
+                  />
+                ))}
+              </div>
+              <div className="confirm-hint">{t('scan.confirmHint')}</div>
+              <div className="row" style={{ marginTop: 12 }}>
+                <button className="btn" onClick={cancelPending} style={{ flex: 1 }}>{t('scan.rescan')}</button>
+                <button className="btn primary" onClick={confirmPending} style={{ flex: 1 }}>{t('scan.confirm')}</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -153,14 +201,12 @@ export default function ScanScreen({ navigate, algorithm }) {
       </div>
 
       <div className="status" style={{ marginTop: 10 }}>
-        {remaining.length === 0 ? 'Все грани получены — проверяем…' : `Покажите камере: ${FACE_LABELS[remaining[0]]}`}
+        {remaining.length === 0 ? t('scan.allDone') : t('scan.showFace', { face: t('face.' + remaining[0]) })}
       </div>
 
       <div className="controls">
-        <button className="btn ghost" onClick={() => { capturedRef.current = {}; setCaptured({}); }}>
-          <FiRefreshCw /> Сбросить
-        </button>
-        <button className="btn" onClick={() => navigate('manual', { algorithm })}>Вручную</button>
+        <button className="btn ghost" onClick={resetAll}><FiRefreshCw /> {t('scan.reset')}</button>
+        <button className="btn" onClick={() => navigate('manual', { algorithm })}>{t('scan.manualShort')}</button>
       </div>
     </div>
   );

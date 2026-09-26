@@ -1,4 +1,5 @@
-import { CUBE_COLORS, FACE_LABELS, FACE_ORDER } from '../vision/ColorDetector.js';
+import { useT } from '../i18n.jsx';
+import { CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
 
 const LAYOUT = {
   U: { col: 1, row: 0 },
@@ -9,11 +10,8 @@ const LAYOUT = {
   D: { col: 1, row: 2 },
 };
 
-/**
- * Развёртка кубика (крест-раскладка). faceletState — 54 символа в порядке FACE_ORDER.
- * onCellTap(face, cellIndex) делает ячейку редактируемой (кроме центра).
- */
 export default function CubeNet({ faceletState, onCellTap, size = 22 }) {
+  const { t } = useT();
   return (
     <div className="net">
       {FACE_ORDER.map((face) => {
@@ -22,7 +20,7 @@ export default function CubeNet({ faceletState, onCellTap, size = 22 }) {
         const faceStr = faceletState.slice(base, base + 9);
         return (
           <div key={face} className="face" style={{ gridColumn: col + 1, gridRow: row + 1 }}>
-            <div className="face-label">{FACE_LABELS[face]}</div>
+            <div className="face-label">{t('face.' + face)}</div>
             {faceStr.split('').map((c, i) => (
               <div
                 key={i}
