@@ -149,15 +149,30 @@ h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
   background: #000; border: 1px solid var(--border);
 }
 .scan-stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.scan-guide {
+.scan-guide-wrap {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(78vw, 340px); aspect-ratio: 1;
+  pointer-events: none;
+}
+.scan-guide {
+  position: absolute; inset: 0;
   border: 2px solid rgba(255,255,255,0.85); border-radius: 12px;
   pointer-events: none; display: grid;
   grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
 }
 .scan-guide .gcell { border: 0.5px solid rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; }
 .scan-guide .gcell .dot { width: 55%; height: 55%; border-radius: 50%; transition: background 0.12s; }
+
+/* Полоски-подсказки центров соседних граней вокруг сетки сканирования */
+.guide-strip {
+  position: absolute; z-index: 1;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+.guide-strip.top { left: 50%; top: -16px; transform: translateX(-50%); width: 58%; height: 12px; }
+.guide-strip.bottom { left: 50%; bottom: -16px; transform: translateX(-50%); width: 58%; height: 12px; }
+.guide-strip.left { top: 50%; left: -16px; transform: translateY(-50%); height: 58%; width: 12px; }
+.guide-strip.right { top: 50%; right: -16px; transform: translateY(-50%); height: 58%; width: 12px; }
 .scan-placeholder {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px;

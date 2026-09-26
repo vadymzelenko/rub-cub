@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
-import { sampleFaceColors, CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
+import { sampleFaceColors, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
 import { validateState } from '../cube/CubeModel.js';
 import { FiRefreshCw } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
@@ -30,6 +30,7 @@ export default function ScanScreen({ navigate, algorithm }) {
   const stableRef = useRef({ last: null, count: 0 });
 
   const nextFace = FACE_ORDER.find((f) => !captured[f]);
+  const neighbors = nextFace ? FACE_NEIGHBORS[nextFace] : null;
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
@@ -179,12 +180,22 @@ export default function ScanScreen({ navigate, algorithm }) {
         )}
 
         {ready && !pending && (
-          <div className="scan-guide" ref={guideRef}>
-            {colors.map((c, i) => (
-              <div className="gcell" key={i}>
-                <div className="dot" style={{ background: c ? CUBE_COLORS[c] : 'rgba(255,255,255,0.12)' }} />
-              </div>
-            ))}
+          <div className="scan-guide-wrap">
+            {neighbors && (
+              <>
+                <div className="guide-strip top" style={{ background: CUBE_COLORS[neighbors.top] }} />
+                <div className="guide-strip right" style={{ background: CUBE_COLORS[neighbors.right] }} />
+                <div className="guide-strip bottom" style={{ background: CUBE_COLORS[neighbors.bottom] }} />
+                <div className="guide-strip left" style={{ background: CUBE_COLORS[neighbors.left] }} />
+              </>
+            )}
+            <div className="scan-guide" ref={guideRef}>
+              {colors.map((c, i) => (
+                <div className="gcell" key={i}>
+                  <div className="dot" style={{ background: c ? CUBE_COLORS[c] : 'rgba(255,255,255,0.12)' }} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

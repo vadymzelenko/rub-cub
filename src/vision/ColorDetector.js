@@ -14,6 +14,20 @@ export const CUBE_COLORS = {
 export const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
 export const FACE_LABELS = { U: 'Верх', R: 'Право', F: 'Перёд', D: 'Низ', L: 'Лево', B: 'Зад' };
 
+// Соседние грани вокруг каждой сканируемой грани: { top, right, bottom, left }.
+// Раскладка соответствует стандартной ориентации кубика (белый сверху, зелёный спереди)
+// и примеру: при скане белой (U) — сверху зелёная (F), справа оранжевая (L),
+// снизу синяя (B), слева красная (R). Таблица согласована (это реальная развёртка),
+// поэтому подсказки остаются верными при переходах между гранями.
+export const FACE_NEIGHBORS = {
+  U: { top: 'F', right: 'L', bottom: 'B', left: 'R' },
+  D: { top: 'B', right: 'L', bottom: 'F', left: 'R' },
+  F: { top: 'D', right: 'L', bottom: 'U', left: 'R' },
+  B: { top: 'D', right: 'R', bottom: 'U', left: 'L' },
+  L: { top: 'D', right: 'B', bottom: 'U', left: 'F' },
+  R: { top: 'D', right: 'F', bottom: 'U', left: 'B' },
+};
+
 // Эталонные HSV-цвета (H: 0-360, S/V: 0-1).
 const REFERENCE_HSV = {
   U: { h: 0, s: 0, v: 1 },       // белый
