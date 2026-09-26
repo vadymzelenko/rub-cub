@@ -253,3 +253,13 @@ h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
 .confirm-cell.locked { cursor: default; opacity: 0.85; }
 .confirm-hint { font-size: 12px; color: var(--muted); margin-top: 12px; }
 
+
+/* ---------- Фоновый паттерн ---------- */
+:root { --dot: rgba(255, 255, 255, 0.045); }
+:root[data-theme='light'] { --dot: rgba(0, 0, 0, 0.06); }
+html, body {
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--dot) 1.5px, transparent 0);
+  background-size: 26px 26px;
+}
+

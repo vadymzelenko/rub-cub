@@ -4,39 +4,55 @@ export class CameraCapture {
   constructor() {
     this.stream = null;
     this.video = null;
+    this._pending = null;
+    this._facing = 'environment';
   }
 
   async start(facingMode = 'environment') {
     if (this.stream && this.video) return this.video;
+    // Защита от повторного параллельного вызова.
+    if (this._pending) return this._pending;
+    this._facing = facingMode;
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('MediaDevices API недоступен в этом окружении');
-    }
+    this._pending = (async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('MediaDevices API недоступен в этом окружении');
+        }
 
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
 
-    this.video = document.createElement('video');
-    this.video.autoplay = true;
-    this.video.playsInline = true;
-    this.video.muted = true;
-    this.video.srcObject = this.stream;
-    await this.video.play();
+        this.video = document.createElement('video');
+        this.video.autoplay = true;
+        this.video.playsInline = true;
+        this.video.muted = true;
+        this.video.setAttribute('playsinline', '');
+        this.video.srcObject = this.stream;
+        await this.video.play();
 
-    return this.video;
+        return this.video;
+      } catch (e) {
+        this.stop();
+        throw e;
+      } finally {
+        this._pending = null;
+      }
+    })();
+
+    return this._pending;
   }
 
   async switchFacing() {
     const next = this._facing === 'environment' ? 'user' : 'environment';
-    this._facing = next;
     this.stop();
     return this.start(next);
   }
 
   get facing() {
-    return this._facing || 'environment';
+    return this._facing;
   }
 
   stop() {
@@ -50,3 +66,4 @@ export class CameraCapture {
 }
 
 export const cameraCapture = new CameraCapture();
+

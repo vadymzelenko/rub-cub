@@ -45,7 +45,7 @@ export default function ScanScreen({ navigate, algorithm }) {
         setReady(true);
         timer = setInterval(() => detect(video), 160);
       } catch (e) {
-        setError(t('scan.error'));
+        setError(t('scan.error') + ' (' + (e.message || e) + ')');
       }
     }
 

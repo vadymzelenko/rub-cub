@@ -51,7 +51,7 @@ export default function App() {
     case 'learn': content = <LearnScreen navigate={navigate} />; break;
     case 'settings': content = <SettingsScreen navigate={navigate} />; break;
     case 'about': content = <AboutScreen navigate={navigate} />; break;
-    default: content = <HomeScreen navigate={navigate} />;
+    default: content = <HomeScreen navigate={navigate} enter={splashOut} />;
   }
 
   return (
