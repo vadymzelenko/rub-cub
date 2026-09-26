@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
-import { cameraCapture } from '../vision/CameraCapture.js';
 import { sampleFaceColors, CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
 import { validateState } from '../cube/CubeModel.js';
 import { FiRefreshCw } from 'react-icons/fi';
@@ -34,19 +33,23 @@ export default function ScanScreen({ navigate, algorithm }) {
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
+    let stream = null;
     let timer = null;
     let disposed = false;
 
-    async function init() {
+    async function start() {
       try {
-        const stream = await cameraCapture.start();
-        if (disposed) return;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+        if (disposed) { stream.getTracks().forEach((t) => t.stop()); return; }
+
         const video = videoRef.current;
-        if (!video) return;
-        video.srcObject = stream;
-        video.setAttribute('muted', '');
-        video.muted = true;
-        try { await video.play(); } catch (e) { /* ignore */ }
+        if (video) {
+          video.srcObject = stream;
+          video.play().catch(() => {});
+        }
         setReady(true);
         timer = setInterval(detect, 160);
       } catch (e) {
@@ -92,11 +95,11 @@ export default function ScanScreen({ navigate, algorithm }) {
       }
     }
 
-    init();
+    start();
     return () => {
       disposed = true;
       if (timer) clearInterval(timer);
-      cameraCapture.stop();
+      stream?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -141,13 +144,23 @@ export default function ScanScreen({ navigate, algorithm }) {
     <div className="app">
       <TopBar title={t('scan.title')} onBack={() => navigate('solverEntry')} />
 
+      {/* Справочник: какой центр на какой стороне */}
+      <div className="center-ref">
+        {FACE_ORDER.map((f) => (
+          <div key={f} className="center-ref-item">
+            <span className="center-ref-dot" style={{ background: CUBE_COLORS[f] }} />
+            <span className="center-ref-label">{t('face.' + f)}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="scan-stage" ref={stageRef}>
         <video
           ref={videoRef}
           autoPlay
           muted
           playsInline
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
         />
 
         {!ready && !error && (

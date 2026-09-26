@@ -265,11 +265,29 @@ html, body {
 
 
 /* ---------- Переход между экранами ---------- */
+/* Без opacity: контент всегда видим, даже если анимация не отработает. */
 .app {
-  animation: screenIn 0.32s cubic-bezier(0.22, 0.8, 0.28, 1) both;
+  animation: screenIn 0.3s cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 @keyframes screenIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { transform: translateY(14px); }
+  to { transform: none; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .app { animation: none; }
+}
+
+/* ---------- Справочник центров при скане ---------- */
+.center-ref {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin: 2px 0 12px;
+}
+.center-ref-item {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 12px 4px 6px;
+}
+.center-ref-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.25); }
+.center-ref-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
 
