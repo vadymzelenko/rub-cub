@@ -1,11 +1,11 @@
 import TopBar from '../components/TopBar.jsx';
 import CubeNet from '../components/CubeNet.jsx';
-import { validateState } from '../cube/CubeModel.js';
+import { analyzeState } from '../cube/CubeModel.js';
 import { useT } from '../i18n.jsx';
 
-export default function ReviewScreen({ navigate, faceletState, algorithm }) {
+export default function ReviewScreen({ navigate, faceletState }) {
   const { t } = useT();
-  const { valid, errors } = validateState(faceletState);
+  const { valid, errors } = analyzeState(faceletState);
 
   return (
     <div className="app scroll">
@@ -18,10 +18,10 @@ export default function ReviewScreen({ navigate, faceletState, algorithm }) {
       </div>
 
       <div className="controls">
-        <button className="btn" onClick={() => navigate('manual', { prefill: faceletState, algorithm })} style={{ flex: 1 }}>
+        <button className="btn" onClick={() => navigate('manual', { prefill: faceletState })} style={{ flex: 1 }}>
           {t('review.edit')}
         </button>
-        <button className="btn primary" disabled={!valid} onClick={() => navigate('solve', { faceletState, algorithm })} style={{ flex: 1 }}>
+        <button className="btn primary" disabled={!valid} onClick={() => navigate('solve', { faceletState })} style={{ flex: 1 }}>
           {t('review.solve')}
         </button>
       </div>

@@ -10,6 +10,7 @@ import SolveScreen from './screens/SolveScreen.jsx';
 import LearnScreen from './screens/LearnScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 import AboutScreen from './screens/AboutScreen.jsx';
+import HelpScreen from './screens/HelpScreen.jsx';
 
 function EntrySplash() {
   return (
@@ -44,14 +45,15 @@ export default function App() {
   let content;
   switch (screen) {
     case 'solverEntry': content = <SolverEntryScreen navigate={navigate} />; break;
-    case 'scan': content = <ScanScreen navigate={navigate} algorithm={params.algorithm} />; break;
-    case 'manual': content = <ManualInputScreen navigate={navigate} prefill={params.prefill} algorithm={params.algorithm} />; break;
-    case 'review': content = <ReviewScreen navigate={navigate} faceletState={params.faceletState} algorithm={params.algorithm} />; break;
-    case 'solve': content = <SolveScreen navigate={navigate} faceletState={params.faceletState} algorithm={params.algorithm} />; break;
+    case 'scan': content = <ScanScreen navigate={navigate} />; break;
+    case 'manual': content = <ManualInputScreen navigate={navigate} prefill={params.prefill} />; break;
+    case 'review': content = <ReviewScreen navigate={navigate} faceletState={params.faceletState} />; break;
+    case 'solve': content = <SolveScreen navigate={navigate} faceletState={params.faceletState} />; break;
     case 'learn': content = <LearnScreen navigate={navigate} />; break;
     case 'settings': content = <SettingsScreen navigate={navigate} />; break;
     case 'about': content = <AboutScreen navigate={navigate} />; break;
-    default: content = <HomeScreen navigate={navigate} enter={splashOut} />;
+    case 'help': content = <HelpScreen navigate={navigate} />; break;
+    default: content = <HomeScreen navigate={navigate} />;
   }
 
   return (

@@ -78,7 +78,8 @@ export default function LearnScreen({ navigate }) {
 
             {open === l.id && (
               <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                <div className="status" style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 14 }}>{l.algo}</div>
+                <div className="lesson-how">{t('l.' + l.id + '.how')}</div>
+                <div className="lesson-algo">{l.algo}</div>
                 <button className="btn small" style={{ marginTop: 10 }} onClick={(e) => { e.stopPropagation(); play(); }}>
                   <FiPlay /> {t('review.solve')}
                 </button>

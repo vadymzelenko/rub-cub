@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { sampleFaceColors, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
-import { validateState } from '../cube/CubeModel.js';
+import { analyzeState } from '../cube/CubeModel.js';
 import { FiRefreshCw } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 
@@ -13,7 +13,7 @@ function drawCover(ctx, video, w, h) {
   ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
 }
 
-export default function ScanScreen({ navigate, algorithm }) {
+export default function ScanScreen({ navigate }) {
   const { t } = useT();
   const stageRef = useRef(null);
   const guideRef = useRef(null);
@@ -24,10 +24,12 @@ export default function ScanScreen({ navigate, algorithm }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(null);
+  const [flash, setFlash] = useState(false);
+  const [scanError, setScanError] = useState('');
 
   const capturedRef = useRef({});
   const pendingRef = useRef(false);
-  const stableRef = useRef({ last: null, count: 0 });
+  const colorsRef = useRef(Array(9).fill(null));
 
   const nextFace = FACE_ORDER.find((f) => !captured[f]);
   const neighbors = nextFace ? FACE_NEIGHBORS[nextFace] : null;
@@ -73,27 +75,15 @@ export default function ScanScreen({ navigate, algorithm }) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       drawCover(ctx, video, w, h);
 
+      const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
       const cols = sampleFaceColors(canvas, {
         x: (gRect.left - sRect.left) * dpr,
         y: (gRect.top - sRect.top) * dpr,
         size: gRect.width * dpr,
-      });
+      }, face || undefined);
 
-      // Центр фиксирован — не сканируем его, он определяет грань.
-      const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
-      if (face) cols[4] = face;
+      colorsRef.current = cols;
       setColors(cols);
-      if (!face) return;
-
-      const key = cols.join('');
-      const st = stableRef.current;
-      if (key === st.last) st.count++; else { st.last = key; st.count = 1; }
-
-      if (st.count >= 3 && cols.every((c) => c)) {
-        st.last = null; st.count = 0;
-        pendingRef.current = true;
-        setPending({ face, colors: [...cols] });
-      }
     }
 
     start();
@@ -104,13 +94,29 @@ export default function ScanScreen({ navigate, algorithm }) {
     };
   }, []);
 
+  // Когда собраны все 6 граней — анализируем и либо идём дальше, либо показываем ошибки.
   useEffect(() => {
     if (Object.keys(captured).length === 6) {
       const facelet = FACE_ORDER.map((f) => captured[f].join('')).join('');
-      if (validateState(facelet).valid) navigate('review', { faceletState: facelet, algorithm });
-      else { capturedRef.current = {}; setCaptured({}); }
+      const res = analyzeState(facelet);
+      if (res.valid) navigate('review', { faceletState: facelet });
+      else setScanError(t('scan.invalid') + ':\n' + res.errors.join('\n'));
     }
-  }, [captured, algorithm, navigate]);
+  }, [captured, navigate, t]);
+
+  // Мини-«затвор»: фиксируем текущий кадр в подтверждение вместо автозахвата.
+  const capture = () => {
+    if (pendingRef.current || flash) return;
+    const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
+    if (!face) return;
+    const cols = colorsRef.current || [];
+    if (cols.length !== 9 || !cols.every((c) => c)) return;
+
+    setFlash(true);
+    setTimeout(() => setFlash(false), 200);
+    pendingRef.current = true;
+    setPending({ face, colors: [...cols] });
+  };
 
   const confirmPending = () => {
     if (!pending) return;
@@ -121,7 +127,6 @@ export default function ScanScreen({ navigate, algorithm }) {
   };
 
   const cancelPending = () => {
-    stableRef.current = { last: null, count: 0 };
     pendingRef.current = false;
     setPending(null);
   };
@@ -140,6 +145,7 @@ export default function ScanScreen({ navigate, algorithm }) {
     setCaptured({});
     pendingRef.current = false;
     setPending(null);
+    setScanError('');
   };
 
   return (
@@ -165,6 +171,8 @@ export default function ScanScreen({ navigate, algorithm }) {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
         />
 
+        {flash && <div className="scan-flash" />}
+
         {!ready && !error && (
           <div className="scan-placeholder">
             <div className="spinner" />
@@ -175,7 +183,7 @@ export default function ScanScreen({ navigate, algorithm }) {
         {error && (
           <div className="scan-placeholder">
             <div>{error}</div>
-            <button className="btn primary" onClick={() => navigate('manual', { algorithm })}>{t('scan.manual')}</button>
+            <button className="btn primary" onClick={() => navigate('manual')}>{t('scan.manual')}</button>
           </div>
         )}
 
@@ -224,7 +232,13 @@ export default function ScanScreen({ navigate, algorithm }) {
         )}
       </div>
 
-      <div className="row" style={{ marginTop: 14, justifyContent: 'center', gap: 10 }}>
+      <div className="shutter-row">
+        <button className="shutter" onClick={capture} disabled={!ready || !!pending || !nextFace} aria-label={t('scan.shutter')}>
+          <span className="shutter-inner" />
+        </button>
+      </div>
+
+      <div className="row" style={{ marginTop: 6, justifyContent: 'center', gap: 10 }}>
         {FACE_ORDER.map((f) => (
           <div key={f} style={{
             width: 28, height: 28, borderRadius: '50%',
@@ -245,9 +259,13 @@ export default function ScanScreen({ navigate, algorithm }) {
         )}
       </div>
 
+      {scanError && (
+        <div className="status error" style={{ marginTop: 8, whiteSpace: 'pre-line' }}>{scanError}</div>
+      )}
+
       <div className="controls">
         <button className="btn ghost" onClick={resetAll}><FiRefreshCw /> {t('scan.reset')}</button>
-        <button className="btn" onClick={() => navigate('manual', { algorithm })}>{t('scan.manualShort')}</button>
+        <button className="btn" onClick={() => navigate('manual')}>{t('scan.manualShort')}</button>
       </div>
     </div>
   );

@@ -87,13 +87,6 @@ function rotateFaceCW(state, face) {
   return s.join('');
 }
 
-function cycle4(arr, indices, reverse = false) {
-  const [a, bI, c, d] = indices;
-  const order = reverse ? [d, a, bI, c] : [bI, c, d, a];
-  const vals = [arr[a], arr[bI], arr[c], arr[d]];
-  arr[indices[0]] = reverse ? vals[3] : vals[3];
-}
-
 /** Применяет один ход (например "R", "U'", "F2") к facelet-строке, возвращает новую строку. */
 export function applyMove(state, move) {
   const base = move[0];
@@ -146,6 +139,45 @@ export function validateState(state) {
     if (counts[c] !== 9) {
       errors.push(`Цвет ${c}: найдено ${counts[c]} наклеек вместо 9`);
     }
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+// Физические кусочки кубика: индексы наклеек (0..53) в facelet-строке.
+// Углы — по 3 наклейки, рёбра — по 2. Нужны для проверки согласованности скана
+// (у реального кусочка все наклейки разных цветов).
+const CORNERS = {
+  URF: [8, 9, 20], UFL: [6, 18, 38], ULB: [0, 36, 47], UBR: [2, 45, 11],
+  DFR: [29, 26, 15], DLF: [27, 44, 24], DBL: [33, 53, 42], DRB: [35, 17, 51],
+};
+
+const EDGES = {
+  UF: [7, 19], UR: [5, 10], UB: [1, 46], UL: [3, 37],
+  DF: [28, 25], DR: [32, 16], DB: [34, 52], DL: [30, 43],
+  FR: [23, 12], FL: [21, 41], BL: [50, 39], BR: [48, 14],
+};
+
+/**
+ * Полная проверка состояния: количество цветов (по 9) + невозможные кусочки
+ * (совпадающие наклейки внутри одного угла/ребра). Возвращает { valid, errors }.
+ */
+export function analyzeState(state) {
+  const errors = [];
+  if (!state || state.length !== 54) {
+    return { valid: false, errors: ['Некорректная длина состояния куба'] };
+  }
+  const counts = {};
+  for (const ch of state) counts[ch] = (counts[ch] || 0) + 1;
+  for (const [c, n] of Object.entries(counts)) {
+    if (n !== 9) errors.push(`Цвет ${c}: ${n} наклеек вместо 9`);
+  }
+  for (const [name, idxs] of Object.entries(CORNERS)) {
+    const [a, b, c] = idxs.map((i) => state[i]);
+    if (a === b || b === c || a === c) errors.push(`Угол ${name}: совпадающие наклейки`);
+  }
+  for (const [name, idxs] of Object.entries(EDGES)) {
+    const [a, b] = idxs.map((i) => state[i]);
+    if (a === b) errors.push(`Ребро ${name}: совпадающие наклейки`);
   }
   return { valid: errors.length === 0, errors };
 }

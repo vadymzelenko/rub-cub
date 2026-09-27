@@ -5,7 +5,7 @@ import { CUBE_COLORS, FACE_ORDER } from '../vision/ColorDetector.js';
 import { validateState, SOLVED_STATE } from '../cube/CubeModel.js';
 import { useT } from '../i18n.jsx';
 
-export default function ManualInputScreen({ navigate, prefill, algorithm }) {
+export default function ManualInputScreen({ navigate, prefill }) {
   const { t } = useT();
   const [faceletState, setFaceletState] = useState(prefill || SOLVED_STATE);
   const [selected, setSelected] = useState('U');
@@ -23,7 +23,7 @@ export default function ManualInputScreen({ navigate, prefill, algorithm }) {
   const solve = () => {
     const { valid, errors } = validateState(faceletState);
     if (!valid) { setError(errors.join('\n')); return; }
-    navigate('review', { faceletState, algorithm });
+    navigate('review', { faceletState });
   };
 
   return (

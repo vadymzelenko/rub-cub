@@ -10,7 +10,7 @@ const LAYOUT = {
   D: { col: 1, row: 2 },
 };
 
-export default function CubeNet({ faceletState, onCellTap, size = 22 }) {
+export default function CubeNet({ faceletState, onCellTap, size = 26 }) {
   const { t } = useT();
   return (
     <div className="net">

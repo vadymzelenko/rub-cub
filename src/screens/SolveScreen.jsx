@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import Cube3D from '../components/Cube3D.jsx';
 import { solveKociemba } from '../solvers/kociemba.js';
-import { solveCfop } from '../solvers/cfop.js';
 import { applyMoves } from '../cube/CubeModel.js';
 import { FiSkipBack, FiChevronLeft, FiPlay, FiPause, FiChevronRight, FiSkipForward } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 
 const SPEED_MS = { slow: 2400, normal: 1500, fast: 800 };
 
-export default function SolveScreen({ navigate, faceletState, algorithm }) {
+export default function SolveScreen({ navigate, faceletState }) {
   const { t } = useT();
   const cubeRef = useRef(null);
   const [moves, setMoves] = useState([]);
@@ -21,7 +20,7 @@ export default function SolveScreen({ navigate, faceletState, algorithm }) {
   const stepRef = useRef(0);
   const playingRef = useRef(false);
 
-  const duration = SPEED_MS[localStorage.getItem('cubeSpeed')] || 1500;
+  const duration = SPEED_MS[localStorage.getItem('cubeSpeed') || 'normal'] || 1500;
 
   useEffect(() => {
     let cancelled = false;
@@ -29,17 +28,18 @@ export default function SolveScreen({ navigate, faceletState, algorithm }) {
     setStatus(t('solve.computing')); setError('');
     (async () => {
       try {
-        const result = algorithm === 'cfop' ? await solveCfop(faceletState) : await solveKociemba(faceletState);
+        const result = await solveKociemba(faceletState);
         if (cancelled) return;
         setMoves(result.moves);
         setStatus(t('solve.solution', { n: result.length }));
         cubeRef.current?.setState(faceletState);
       } catch (e) {
-        if (!cancelled) { setStatus('Error'); setError(e.message); }
+        if (!cancelled) { setStatus('Error'); setError(String(e.message || e)); }
       }
     })();
     return () => { cancelled = true; };
-  }, [faceletState, algorithm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faceletState]);
 
   useEffect(() => () => { playingRef.current = false; }, []);
 

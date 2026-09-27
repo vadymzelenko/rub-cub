@@ -1,33 +1,21 @@
-import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { FiBox, FiBookOpen, FiSettings, FiInfo, FiChevronRight } from 'react-icons/fi';
+import { FiBox, FiBookOpen, FiSettings, FiInfo, FiChevronRight, FiHelpCircle } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 
 const MENU = [
   { screen: 'solverEntry', icon: FiBox, title: 'menu.solve', desc: 'menu.solveDesc' },
   { screen: 'learn', icon: FiBookOpen, title: 'menu.learn', desc: 'menu.learnDesc' },
+  { screen: 'help', icon: FiHelpCircle, title: 'menu.help', desc: 'menu.helpDesc' },
   { screen: 'settings', icon: FiSettings, title: 'menu.settings', desc: 'menu.settingsDesc' },
   { screen: 'about', icon: FiInfo, title: 'menu.about', desc: 'menu.aboutDesc' },
 ];
 
-export default function HomeScreen({ navigate, enter }) {
+export default function HomeScreen({ navigate }) {
   const { t } = useT();
-  const rootRef = useRef(null);
-
-  useEffect(() => {
-    if (!enter) return;
-    const ctx = gsap.context(() => {
-      gsap.from('.hero > *', { y: 22, opacity: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out' });
-      gsap.from('.menu .card', { y: 26, opacity: 0, duration: 0.55, stagger: 0.09, delay: 0.25, ease: 'power3.out' });
-      gsap.from('.footer', { opacity: 0, y: 10, duration: 0.6, delay: 0.65, ease: 'power3.out' });
-    }, rootRef);
-    return () => ctx.revert();
-  }, [enter]);
 
   return (
-    <div className="app" ref={rootRef}>
+    <div className="app">
       <div className="hero">
-        <div className="logo"><FiBox size={24} /></div>
+        <div className="logo"><FiBox size={26} /></div>
         <h1>{t('appTitle')}</h1>
         <p className="subtitle">{t('appSubtitle')}</p>
       </div>

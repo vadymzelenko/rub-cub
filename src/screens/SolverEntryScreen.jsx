@@ -1,16 +1,9 @@
-import { useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
-import { FiCamera, FiGrid, FiCheck, FiCircle, FiChevronRight } from 'react-icons/fi';
+import { FiCamera, FiGrid, FiChevronRight } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
-
-const ALGOS = [
-  { id: 'kociemba', label: 'entry.kociemba', desc: 'entry.kociembaDesc' },
-  { id: 'cfop', label: 'entry.cfop', desc: 'entry.cfopDesc' },
-];
 
 export default function SolverEntryScreen({ navigate }) {
   const { t } = useT();
-  const [algo, setAlgo] = useState('kociemba');
 
   return (
     <div className="app">
@@ -18,7 +11,7 @@ export default function SolverEntryScreen({ navigate }) {
 
       <div className="section-label">{t('entry.inputMethod')}</div>
       <div className="menu" style={{ marginTop: 0 }}>
-        <button className="card" onClick={() => navigate('scan', { algorithm: algo })}>
+        <button className="card" onClick={() => navigate('scan')}>
           <span className="icon"><FiCamera /></span>
           <span className="body">
             <span className="title">{t('entry.scan')}</span>
@@ -26,7 +19,7 @@ export default function SolverEntryScreen({ navigate }) {
           </span>
           <FiChevronRight className="chevron" />
         </button>
-        <button className="card" onClick={() => navigate('manual', { algorithm: algo })}>
+        <button className="card" onClick={() => navigate('manual')}>
           <span className="icon"><FiGrid /></span>
           <span className="body">
             <span className="title">{t('entry.manual')}</span>
@@ -34,19 +27,6 @@ export default function SolverEntryScreen({ navigate }) {
           </span>
           <FiChevronRight className="chevron" />
         </button>
-      </div>
-
-      <div className="section-label">{t('entry.algorithm')}</div>
-      <div className="menu" style={{ marginTop: 0 }}>
-        {ALGOS.map((a) => (
-          <button key={a.id} className="card" onClick={() => setAlgo(a.id)}>
-            <span className="icon">{algo === a.id ? <FiCheck /> : <FiCircle />}</span>
-            <span className="body">
-              <span className="title">{t(a.label)}</span>
-              <div className="desc">{t(a.desc)}</div>
-            </span>
-          </button>
-        ))}
       </div>
     </div>
   );
