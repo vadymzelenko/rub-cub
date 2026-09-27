@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
-import { sampleFaceColors, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
-import { analyzeState } from '../cube/CubeModel.js';
+import { sampleFaceColors, averageColor, calibrateColor, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
 import { FiRefreshCw } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 
@@ -25,7 +24,6 @@ export default function ScanScreen({ navigate }) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(null);
   const [flash, setFlash] = useState(false);
-  const [scanError, setScanError] = useState('');
 
   const capturedRef = useRef({});
   const pendingRef = useRef(false);
@@ -76,12 +74,21 @@ export default function ScanScreen({ navigate }) {
       drawCover(ctx, video, w, h);
 
       const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
-      const cols = sampleFaceColors(canvas, {
+      const rect = {
         x: (gRect.left - sRect.left) * dpr,
         y: (gRect.top - sRect.top) * dpr,
         size: gRect.width * dpr,
-      }, face || undefined);
+      };
 
+      // Авто-калибровка: запоминаем фактический цвет центра текущей грани,
+      // чтобы различать зелёный/синий и оранжевый/красный на этом кубике.
+      if (face) {
+        const cell = rect.size / 3;
+        const center = averageColor(ctx, rect.x + cell * 1.5, rect.y + cell * 1.5, cell * 0.3);
+        calibrateColor(face, center.r, center.g, center.b);
+      }
+
+      const cols = sampleFaceColors(canvas, rect, face || undefined);
       colorsRef.current = cols;
       setColors(cols);
     }
@@ -94,15 +101,13 @@ export default function ScanScreen({ navigate }) {
     };
   }, []);
 
-  // Когда собраны все 6 граней — анализируем и либо идём дальше, либо показываем ошибки.
+  // Когда собраны все 6 граней — сохраняем и переходим к проверке/просмотру сторон.
   useEffect(() => {
     if (Object.keys(captured).length === 6) {
       const facelet = FACE_ORDER.map((f) => captured[f].join('')).join('');
-      const res = analyzeState(facelet);
-      if (res.valid) navigate('review', { faceletState: facelet });
-      else setScanError(t('scan.invalid') + ':\n' + res.errors.join('\n'));
+      navigate('review', { faceletState: facelet });
     }
-  }, [captured, navigate, t]);
+  }, [captured, navigate]);
 
   // Мини-«затвор»: фиксируем текущий кадр в подтверждение вместо автозахвата.
   const capture = () => {
@@ -145,7 +150,6 @@ export default function ScanScreen({ navigate }) {
     setCaptured({});
     pendingRef.current = false;
     setPending(null);
-    setScanError('');
   };
 
   return (
@@ -258,10 +262,6 @@ export default function ScanScreen({ navigate }) {
           </>
         )}
       </div>
-
-      {scanError && (
-        <div className="status error" style={{ marginTop: 8, whiteSpace: 'pre-line' }}>{scanError}</div>
-      )}
 
       <div className="controls">
         <button className="btn ghost" onClick={resetAll}><FiRefreshCw /> {t('scan.reset')}</button>

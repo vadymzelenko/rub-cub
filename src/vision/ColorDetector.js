@@ -38,6 +38,53 @@ const REFERENCE_HSV = {
   R: { h: 350, s: 0.95, v: 0.75 }, // красный
 };
 
+// ---------- Калибровка цвета ----------
+// Центр каждой грани — всегда «эталонный» цвет этой грани. При сканировании мы
+// измеряем фактический цвет центра и запоминаем его — так детектор подстраивается
+// под конкретный кубик и освещение (меньше путаницы зелёный/синий, оранжевый/красный).
+const CALIB_KEY = 'cubeColorCalib';
+
+function loadCalibration() {
+  try {
+    const raw = localStorage.getItem(CALIB_KEY);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === 'object') return obj;
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveCalibration() {
+  try { localStorage.setItem(CALIB_KEY, JSON.stringify(calibration)); } catch { /* ignore */ }
+}
+
+let calibration = loadCalibration();
+
+export function calibrateColor(face, r, g, b) {
+  if (!face) return;
+  const [h, s, v] = rgbToHsv(r, g, b);
+  calibration[face] = { h, s, v };
+  saveCalibration();
+}
+
+export function resetCalibration() {
+  calibration = {};
+  try { localStorage.removeItem(CALIB_KEY); } catch { /* ignore */ }
+}
+
+export function calibrationCount() {
+  return Object.keys(calibration).length;
+}
+
+function effectiveRefs() {
+  const refs = {};
+  for (const [face, def] of Object.entries(REFERENCE_HSV)) {
+    refs[face] = calibration[face] || def;
+  }
+  return refs;
+}
+
 export function rgbToHsv(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -64,11 +111,13 @@ export function classifyColor(r, g, b, exclude) {
   // Белый — низкая насыщенность и высокая яркость.
   if (s < 0.25 && v > 0.6 && exclude !== 'U') return 'U';
 
+  const refs = effectiveRefs();
   let best = null;
   let bestD = Infinity;
-  for (const [face, ref] of Object.entries(REFERENCE_HSV)) {
+  for (const [face, ref] of Object.entries(refs)) {
     if (face === 'U' || face === exclude) continue;
-    const d = hueDistance(h, ref.h) + Math.abs(s - ref.s) * 1.2 + Math.abs(v - ref.v) * 1.2;
+    // Насыщенные эталоны сравниваем в основном по тону, ненасыщенные — по яркости.
+    const d = hueDistance(h, ref.h) + Math.abs(s - ref.s) * 1.4 + Math.abs(v - ref.v) * 1.4;
     if (d < bestD) { bestD = d; best = face; }
   }
   return best;

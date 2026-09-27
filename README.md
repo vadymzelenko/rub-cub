@@ -41,5 +41,5 @@ src/
 ## Технологии
 
 React 19, Vite 5, Three.js (3D), cubejs (решатель), react-icons,
-@fontsource/rubik (шрифт, локально), Capacitor 6.
+@fontsource/inter (шрифт, локально), Capacitor 6.
 

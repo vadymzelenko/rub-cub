@@ -13,6 +13,7 @@
 //            D7 D8 D9
 
 export const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
+export const FACE_NAME = { U: 'Верх', R: 'Право', F: 'Перёд', D: 'Низ', L: 'Лево', B: 'Зад' };
 
 export const SOLVED_STATE = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
 
@@ -157,27 +158,32 @@ const EDGES = {
   FR: [23, 12], FL: [21, 41], BL: [50, 39], BR: [48, 14],
 };
 
+function pieceName(name) {
+  return name.split('').map((ch) => FACE_NAME[ch] || ch).join(' · ');
+}
+
 /**
- * Полная проверка состояния: количество цветов (по 9) + невозможные кусочки
- * (совпадающие наклейки внутри одного угла/ребра). Возвращает { valid, errors }.
+ * Полная проверка состояния: количество наклеек каждого цвета (по 9) + невозможные
+ * кусочки (совпадающие наклейки внутри одного угла/ребра). Ошибки — понятные,
+ * с указанием граней. Возвращает { valid, errors }.
  */
 export function analyzeState(state) {
   const errors = [];
   if (!state || state.length !== 54) {
-    return { valid: false, errors: ['Некорректная длина состояния куба'] };
+    return { valid: false, errors: ['Не удалось прочитать куб — пересканируйте'] };
   }
   const counts = {};
   for (const ch of state) counts[ch] = (counts[ch] || 0) + 1;
   for (const [c, n] of Object.entries(counts)) {
-    if (n !== 9) errors.push(`Цвет ${c}: ${n} наклеек вместо 9`);
+    if (n !== 9) errors.push(`Грань «${FACE_NAME[c] || c}»: найдено ${n} наклеек вместо 9`);
   }
   for (const [name, idxs] of Object.entries(CORNERS)) {
     const [a, b, c] = idxs.map((i) => state[i]);
-    if (a === b || b === c || a === c) errors.push(`Угол ${name}: совпадающие наклейки`);
+    if (a === b || b === c || a === c) errors.push(`Угол ${pieceName(name)}: две наклейки одного цвета`);
   }
   for (const [name, idxs] of Object.entries(EDGES)) {
     const [a, b] = idxs.map((i) => state[i]);
-    if (a === b) errors.push(`Ребро ${name}: совпадающие наклейки`);
+    if (a === b) errors.push(`Ребро ${pieceName(name)}: две наклейки одного цвета`);
   }
   return { valid: errors.length === 0, errors };
 }

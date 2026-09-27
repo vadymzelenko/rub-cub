@@ -2,6 +2,7 @@ import { useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { FiChevronRight } from 'react-icons/fi';
 import { useT, LANGS } from '../i18n.jsx';
+import { resetCalibration, calibrationCount } from '../vision/ColorDetector.js';
 
 const SPEEDS = ['normal', 'fast', 'slow'];
 const SPEED_LABEL = { normal: 'speed.normal', fast: 'speed.fast', slow: 'speed.slow' };
@@ -17,6 +18,7 @@ export default function SettingsScreen({ navigate }) {
   const { t, lang, setLang } = useT();
   const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'light' ? 1 : 0));
   const [speed, setSpeed] = useState(loadSpeed);
+  const [, setCalib] = useState(0);
 
   const langIndex = LANGS.findIndex((l) => l.id === lang);
 
@@ -43,6 +45,7 @@ export default function SettingsScreen({ navigate }) {
     { title: t('settings.theme'), value: t(theme === 1 ? 'theme.light' : 'theme.dark'), onClick: cycleTheme },
     { title: t('settings.language'), value: LANGS[langIndex].label, onClick: cycleLang },
     { title: t('settings.speed'), value: t(SPEED_LABEL[speed]), onClick: cycleSpeed },
+    { title: t('settings.calib'), value: calibrationCount() + ' / 6', onClick: () => { resetCalibration(); setCalib((v) => v + 1); } },
     { title: t('settings.help'), value: t('settings.helpDesc'), onClick: () => navigate('help') },
   ];
 
