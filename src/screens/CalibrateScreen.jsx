@@ -18,6 +18,11 @@ function drawCover(ctx, video, w, h) {
     ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
 }
 
+// Тёмный текст на светлых цветах (белый, жёлтый), светлый — на остальных.
+function textColorFor(face) {
+    return face === 'U' || face === 'D' ? '#111' : '#fff';
+}
+
 export default function CalibrateScreen() {
     const { t } = useT();
     const { navigate } = useNav();
@@ -82,7 +87,8 @@ export default function CalibrateScreen() {
 
         const cx = (tRect.left - sRect.left + tRect.width / 2) * dpr;
         const cy = (tRect.top - sRect.top + tRect.height / 2) * dpr;
-        const radius = Math.min(tRect.width, tRect.height) * dpr * 0.25;
+        // Берём пиксели из центра круга — внутри мишени (радиус ~ 30% диаметра).
+        const radius = Math.min(tRect.width, tRect.height) * dpr * 0.2;
         const { r, g, b } = averageColor(ctx, cx, cy, radius);
 
         calibrateColor(current, r, g, b);
@@ -107,9 +113,9 @@ export default function CalibrateScreen() {
         <div className="app">
             <TopBar title={t('calib.title')} />
 
-            <div className="status" style={{ marginTop: 4 }}>
-                {done ? t('calib.allDone') : t('calib.step', { n: step + 1, total })}
-            </div>
+            {/*<div className="status" style={{ marginTop: 4 }}>*/}
+            {/*    {done ? t('calib.allDone') : t('calib.step', { n: step + 1, total })}*/}
+            {/*</div>*/}
 
             <div className="scan-stage" ref={stageRef}>
                 <video
@@ -139,14 +145,33 @@ export default function CalibrateScreen() {
                     <>
                         <div
                             className="calib-badge"
-                            style={{ background: CUBE_COLORS[current] }}
+                            style={{
+                                background: CUBE_COLORS[current],
+                                color: textColorFor(current),
+                                borderColor: textColorFor(current) === '#111' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.55)',
+                                textShadow: textColorFor(current) === '#111'
+                                    ? 'none'
+                                    : '0 1px 3px rgba(0, 0, 0, 0.55)',
+                            }}
                         >
-                            <span className="calib-badge-dot" />
-                            {t('face.' + current)}
+  <span
+      className="calib-badge-dot"
+      style={{
+          background: textColorFor(current) === '#111'
+              ? 'rgba(0,0,0,0.28)'
+              : 'rgba(0,0,0,0.28)',
+          boxShadow: textColorFor(current) === '#111'
+              ? 'inset 0 0 0 1.5px rgba(0,0,0,0.35)'
+              : 'inset 0 0 0 1.5px rgba(255,255,255,0.6)',
+      }}
+  />
+                            {t('color.' + current)}
                         </div>
 
-                        <div className="calib-target-wrap">
-                            <div className="calib-target" ref={targetRef} />
+                        <div className="calib-circle-wrap">
+                            <div className="calib-circle" ref={targetRef}>
+                                <div className="calib-circle-inner" />
+                            </div>
                         </div>
 
                         <div className="calib-hint-overlay">{t('calib.hint')}</div>

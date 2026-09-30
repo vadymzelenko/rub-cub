@@ -18,9 +18,13 @@ export default function HomeScreen() {
     return (
         <div className="app">
             <div className="hero">
-                <div className="logo"><Logo size={26} /></div>
-                <h1>RubCub</h1>
-                <p className="subtitle">{t('appSubtitle')}</p>
+                <div className="hero-row">
+                    <div className="logo"><Logo size={26} /></div>
+                    <div className="hero-text">
+                        <h1>RubCub</h1>
+                        <p className="subtitle">{t('appSubtitle')}</p>
+                    </div>
+                </div>
             </div>
 
             <div className="menu">
@@ -35,8 +39,8 @@ export default function HomeScreen() {
                     </button>
                 ))}
             </div>
-
             <div className="footer">VZstudio · RubCub</div>
+
         </div>
     );
 }
