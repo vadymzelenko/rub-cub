@@ -6,9 +6,8 @@ workflows:
     environment:
       node: 20
       java: 17
-      android: 34
       vars:
-        PACKAGE_NAME: "dev.vzstudio.rubcub"
+        PACKAGE_NAME: "dev.vzstudio.rub-cub"
     triggering:
       events:
         - push
