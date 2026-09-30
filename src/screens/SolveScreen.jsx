@@ -5,10 +5,11 @@ import { solveKociemba } from '../solvers/kociemba.js';
 import { applyMoves } from '../cube/CubeModel.js';
 import { FiSkipBack, FiChevronLeft, FiPlay, FiPause, FiChevronRight, FiSkipForward } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
+import { useNav } from '../navigation.jsx';
 
 const SPEED_MS = { slow: 2400, normal: 1500, fast: 800 };
 
-export default function SolveScreen({ navigate, faceletState }) {
+export default function SolveScreen({ faceletState }) {
   const { t } = useT();
   const cubeRef = useRef(null);
   const [moves, setMoves] = useState([]);
@@ -83,33 +84,33 @@ export default function SolveScreen({ navigate, faceletState }) {
   const strip = moves.slice(Math.max(0, step - 4), step + 5).join(' ');
 
   return (
-    <div className="app">
-      <TopBar title={t('solve.title')} onBack={() => navigate('home')} />
+      <div className="app">
+        <TopBar title={t('solve.title')} />
 
-      <div className="status" style={{ marginTop: 8 }}>{status}</div>
+        <div className="status" style={{ marginTop: 8 }}>{status}</div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
-        <Cube3D ref={cubeRef} size={260} />
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+          <Cube3D ref={cubeRef} size={260} />
+        </div>
+
+        <div className="move-big">{moves[step] || '—'}</div>
+        <div className="status">{step} / {moves.length}</div>
+        <div className="move-strip">{strip}</div>
+        {error && <div className="status error" style={{ marginTop: 8 }}>{error}</div>}
+
+        <div className="controls">
+          <button className="btn" onClick={reset}><FiSkipBack /></button>
+          <button className="btn" onClick={() => { stop(); stepRef.current = Math.max(0, stepRef.current - 1); setStep(stepRef.current); }}>
+            <FiChevronLeft />
+          </button>
+          <button className="btn primary" onClick={playing ? stop : play}>
+            {playing ? <FiPause /> : <FiPlay />}
+          </button>
+          <button className="btn" disabled={animating} onClick={() => { stop(); doMove(stepRef.current); }}>
+            <FiChevronRight />
+          </button>
+          <button className="btn" onClick={skipEnd}><FiSkipForward /></button>
+        </div>
       </div>
-
-      <div className="move-big">{moves[step] || '—'}</div>
-      <div className="status">{step} / {moves.length}</div>
-      <div className="move-strip">{strip}</div>
-      {error && <div className="status error" style={{ marginTop: 8 }}>{error}</div>}
-
-      <div className="controls">
-        <button className="btn" onClick={reset}><FiSkipBack /></button>
-        <button className="btn" onClick={() => { stop(); stepRef.current = Math.max(0, stepRef.current - 1); setStep(stepRef.current); }}>
-          <FiChevronLeft />
-        </button>
-        <button className="btn primary" onClick={playing ? stop : play}>
-          {playing ? <FiPause /> : <FiPlay />}
-        </button>
-        <button className="btn" disabled={animating} onClick={() => { stop(); doMove(stepRef.current); }}>
-          <FiChevronRight />
-        </button>
-        <button className="btn" onClick={skipEnd}><FiSkipForward /></button>
-      </div>
-    </div>
   );
 }

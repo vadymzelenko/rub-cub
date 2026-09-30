@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
-import { sampleFaceColors, averageColor, calibrateColor, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
+import { sampleFaceColors, CUBE_COLORS, FACE_ORDER, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
 import { FiRefreshCw } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
+import { useNav } from '../navigation.jsx';
 
 function drawCover(ctx, video, w, h) {
   const vw = video.videoWidth, vh = video.videoHeight;
@@ -12,8 +13,9 @@ function drawCover(ctx, video, w, h) {
   ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
 }
 
-export default function ScanScreen({ navigate }) {
+export default function ScanScreen() {
   const { t } = useT();
+  const { navigate } = useNav();
   const stageRef = useRef(null);
   const guideRef = useRef(null);
   const videoRef = useRef(null);
@@ -80,14 +82,6 @@ export default function ScanScreen({ navigate }) {
         size: gRect.width * dpr,
       };
 
-      // Авто-калибровка: запоминаем фактический цвет центра текущей грани,
-      // чтобы различать зелёный/синий и оранжевый/красный на этом кубике.
-      if (face) {
-        const cell = rect.size / 3;
-        const center = averageColor(ctx, rect.x + cell * 1.5, rect.y + cell * 1.5, cell * 0.3);
-        calibrateColor(face, center.r, center.g, center.b);
-      }
-
       const cols = sampleFaceColors(canvas, rect, face || undefined);
       colorsRef.current = cols;
       setColors(cols);
@@ -101,7 +95,6 @@ export default function ScanScreen({ navigate }) {
     };
   }, []);
 
-  // Когда собраны все 6 граней — сохраняем и переходим к проверке/просмотру сторон.
   useEffect(() => {
     if (Object.keys(captured).length === 6) {
       const facelet = FACE_ORDER.map((f) => captured[f].join('')).join('');
@@ -109,7 +102,6 @@ export default function ScanScreen({ navigate }) {
     }
   }, [captured, navigate]);
 
-  // Мини-«затвор»: фиксируем текущий кадр в подтверждение вместо автозахвата.
   const capture = () => {
     if (pendingRef.current || flash) return;
     const face = FACE_ORDER.find((f) => !capturedRef.current[f]);
@@ -153,120 +145,89 @@ export default function ScanScreen({ navigate }) {
   };
 
   return (
-    <div className="app">
-      <TopBar title={t('scan.title')} onBack={() => navigate('solverEntry')} />
+      <div className="app">
+        <TopBar title={t('scan.title')} />
 
-      {/* Справочник: какой центр на какой стороне */}
-      <div className="center-ref">
-        {FACE_ORDER.map((f) => (
-          <div key={f} className="center-ref-item">
-            <span className="center-ref-dot" style={{ background: CUBE_COLORS[f] }} />
-            <span className="center-ref-label">{t('face.' + f)}</span>
-          </div>
-        ))}
-      </div>
+        <div className="scan-stage" ref={stageRef}>
+          <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+          />
 
-      <div className="scan-stage" ref={stageRef}>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
-        />
+          {flash && <div className="scan-flash" />}
 
-        {flash && <div className="scan-flash" />}
+          {!ready && !error && (
+              <div className="scan-placeholder">
+                <div className="spinner" />
+                <div>{t('scan.starting')}</div>
+              </div>
+          )}
 
-        {!ready && !error && (
-          <div className="scan-placeholder">
-            <div className="spinner" />
-            <div>{t('scan.starting')}</div>
-          </div>
-        )}
+          {error && (
+              <div className="scan-placeholder">
+                <div>{error}</div>
+                <button className="btn primary" onClick={() => navigate('manual')}>{t('scan.manual')}</button>
+              </div>
+          )}
 
-        {error && (
-          <div className="scan-placeholder">
-            <div>{error}</div>
-            <button className="btn primary" onClick={() => navigate('manual')}>{t('scan.manual')}</button>
-          </div>
-        )}
-
-        {ready && !pending && (
-          <div className="scan-guide-wrap">
-            {neighbors && (
-              <>
-                <div className="guide-strip top" style={{ background: CUBE_COLORS[neighbors.top] }} />
-                <div className="guide-strip right" style={{ background: CUBE_COLORS[neighbors.right] }} />
-                <div className="guide-strip bottom" style={{ background: CUBE_COLORS[neighbors.bottom] }} />
-                <div className="guide-strip left" style={{ background: CUBE_COLORS[neighbors.left] }} />
-              </>
-            )}
-            <div className="scan-guide" ref={guideRef}>
-              {colors.map((c, i) => (
-                <div className="gcell" key={i}>
-                  <div className="dot" style={{ background: c ? CUBE_COLORS[c] : 'rgba(255,255,255,0.12)' }} />
+          {ready && !pending && (
+              <div className="scan-guide-wrap">
+                {neighbors && (
+                    <>
+                      <div className="guide-strip top" style={{ background: CUBE_COLORS[neighbors.top] }} />
+                      <div className="guide-strip right" style={{ background: CUBE_COLORS[neighbors.right] }} />
+                      <div className="guide-strip bottom" style={{ background: CUBE_COLORS[neighbors.bottom] }} />
+                      <div className="guide-strip left" style={{ background: CUBE_COLORS[neighbors.left] }} />
+                    </>
+                )}
+                <div className="scan-guide" ref={guideRef}>
+                  {colors.map((c, i) => (
+                      <div className="gcell" key={i}>
+                        <div className="dot" style={{ background: c ? CUBE_COLORS[c] : 'rgba(255,255,255,0.12)' }} />
+                      </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {pending && (
-          <div className="confirm-overlay">
-            <div className="confirm-card">
-              <div className="confirm-title">{t('scan.confirmTitle')}</div>
-              <div className="confirm-grid">
-                {pending.colors.map((c, i) => (
-                  <button
-                    key={i}
-                    className={'confirm-cell' + (i === 4 ? ' locked' : '')}
-                    style={{ background: CUBE_COLORS[c] }}
-                    onClick={() => editPendingCell(i)}
-                    disabled={i === 4}
-                  />
-                ))}
               </div>
-              <div className="confirm-hint">{t('scan.confirmHint')}</div>
-              <div className="row" style={{ marginTop: 12 }}>
-                <button className="btn" onClick={cancelPending} style={{ flex: 1 }}>{t('scan.rescan')}</button>
-                <button className="btn primary" onClick={confirmPending} style={{ flex: 1 }}>{t('scan.confirm')}</button>
+          )}
+
+          {pending && (
+              <div className="confirm-overlay">
+                <div className="confirm-card">
+                  <div className="confirm-title">{t('scan.confirmTitle')}</div>
+                  <div className="confirm-grid">
+                    {pending.colors.map((c, i) => (
+                        <button
+                            key={i}
+                            className={'confirm-cell' + (i === 4 ? ' locked' : '')}
+                            style={{ background: CUBE_COLORS[c] }}
+                            onClick={() => editPendingCell(i)}
+                            disabled={i === 4}
+                        />
+                    ))}
+                  </div>
+                  <div className="confirm-hint">{t('scan.confirmHint')}</div>
+                  <div className="row" style={{ marginTop: 12 }}>
+                    <button className="btn" onClick={cancelPending} style={{ flex: 1 }}>{t('scan.rescan')}</button>
+                    <button className="btn primary" onClick={confirmPending} style={{ flex: 1 }}>{t('scan.confirm')}</button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="shutter-row">
-        <button className="shutter" onClick={capture} disabled={!ready || !!pending || !nextFace} aria-label={t('scan.shutter')}>
-          <span className="shutter-inner" />
-        </button>
-      </div>
+        <div className="shutter-row">
+          <button className="shutter" onClick={capture} disabled={!ready || !!pending || !nextFace} aria-label={t('scan.shutter')}>
+            <span className="shutter-inner" />
+          </button>
+        </div>
 
-      <div className="row" style={{ marginTop: 6, justifyContent: 'center', gap: 10 }}>
-        {FACE_ORDER.map((f) => (
-          <div key={f} style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: CUBE_COLORS[f],
-            border: '2px solid ' + (captured[f] ? 'var(--success)' : 'var(--border)'),
-            opacity: captured[f] ? 1 : 0.35,
-            transition: 'opacity 0.2s, border-color 0.2s',
-          }} />
-        ))}
+        <div className="controls">
+          <button className="btn ghost" onClick={resetAll}><FiRefreshCw /> {t('scan.reset')}</button>
+          <button className="btn" onClick={() => navigate('manual')}>{t('scan.manualShort')}</button>
+        </div>
       </div>
-
-      <div className="status" style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        {!nextFace ? t('scan.allDone') : (
-          <>
-            {t('scan.showFace')}
-            <span style={{ width: 18, height: 18, borderRadius: '50%', background: CUBE_COLORS[nextFace], border: '1px solid var(--border-strong)', flexShrink: 0 }} />
-          </>
-        )}
-      </div>
-
-      <div className="controls">
-        <button className="btn ghost" onClick={resetAll}><FiRefreshCw /> {t('scan.reset')}</button>
-        <button className="btn" onClick={() => navigate('manual')}>{t('scan.manualShort')}</button>
-      </div>
-    </div>
   );
 }

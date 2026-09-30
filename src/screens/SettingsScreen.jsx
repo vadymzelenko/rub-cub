@@ -2,7 +2,7 @@ import { useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { FiChevronRight } from 'react-icons/fi';
 import { useT, LANGS } from '../i18n.jsx';
-import { resetCalibration, calibrationCount } from '../vision/ColorDetector.js';
+import { useNav } from '../navigation.jsx';
 
 const SPEEDS = ['normal', 'fast', 'slow'];
 const SPEED_LABEL = { normal: 'speed.normal', fast: 'speed.fast', slow: 'speed.slow' };
@@ -14,11 +14,12 @@ function loadSpeed() {
   } catch { return 'normal'; }
 }
 
-export default function SettingsScreen({ navigate }) {
+export default function SettingsScreen() {
   const { t, lang, setLang } = useT();
+  const { navigate } = useNav();
+
   const [theme, setTheme] = useState(() => (localStorage.getItem('theme') === 'light' ? 1 : 0));
   const [speed, setSpeed] = useState(loadSpeed);
-  const [, setCalib] = useState(0);
 
   const langIndex = LANGS.findIndex((l) => l.id === lang);
 
@@ -42,28 +43,27 @@ export default function SettingsScreen({ navigate }) {
   };
 
   const rows = [
-    { title: t('settings.theme'), value: t(theme === 1 ? 'theme.light' : 'theme.dark'), onClick: cycleTheme },
-    { title: t('settings.language'), value: LANGS[langIndex].label, onClick: cycleLang },
-    { title: t('settings.speed'), value: t(SPEED_LABEL[speed]), onClick: cycleSpeed },
-    { title: t('settings.calib'), value: calibrationCount() + ' / 6', onClick: () => { resetCalibration(); setCalib((v) => v + 1); } },
-    { title: t('settings.help'), value: t('settings.helpDesc'), onClick: () => navigate('help') },
+    { title: t('settings.theme'),    value: t(theme === 1 ? 'theme.light' : 'theme.dark'), onClick: cycleTheme },
+    { title: t('settings.language'), value: LANGS[langIndex].label,                        onClick: cycleLang },
+    { title: t('settings.speed'),    value: t(SPEED_LABEL[speed]),                         onClick: cycleSpeed },
+    { title: t('settings.help'),     value: t('settings.helpDesc'),                        onClick: () => navigate('help') },
   ];
 
   return (
-    <div className="app">
-      <TopBar title={t('settings.title')} onBack={() => navigate('home')} />
+      <div className="app">
+        <TopBar title={t('settings.title')} />
 
-      <div className="menu" style={{ marginTop: 8 }}>
-        {rows.map((r) => (
-          <button key={r.title} className="card" onClick={r.onClick}>
+        <div className="menu" style={{ marginTop: 8 }}>
+          {rows.map((r) => (
+              <button key={r.title} className="card" onClick={r.onClick}>
             <span className="body">
               <span className="title">{r.title}</span>
               <div className="desc">{r.value}</div>
             </span>
-            <FiChevronRight className="chevron" />
-          </button>
-        ))}
+                <FiChevronRight className="chevron" />
+              </button>
+          ))}
+        </div>
       </div>
-    </div>
   );
 }
