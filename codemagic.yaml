@@ -6,8 +6,9 @@ workflows:
     environment:
       node: 20
       java: 17
+      android: 34
       vars:
-        PACKAGE_NAME: "dev.vzstudio.rub-cub"
+        PACKAGE_NAME: "dev.vzstudio.rubcub"
     triggering:
       events:
         - push
@@ -18,10 +19,15 @@ workflows:
     scripts:
       - name: Install npm dependencies
         script: |
-          npm ci
+          npm ci || npm install
       - name: Build web app
         script: |
           npm run build
+      - name: Add Android platform (if missing)
+        script: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
       - name: Sync Capacitor
         script: |
           npx cap sync android
