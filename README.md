@@ -1,45 +1,57 @@
 # Cube Solver
 
-Сканер и решатель кубика Рубика 3×3. Веб (React + Vite) с упаковкой под
-Android/iOS через Capacitor.
+Rubik's Cube 3x3 scanner and solver. A React web app packaged for Android and iOS with Capacitor.
 
-## Возможности
+Live: https://rub-cub.vercel.app/
 
-- Скан камерой: захват грани по кнопке-«затвору», цветные подсказки центров
-  соседних граней вокруг рамки, авто-коррекция «растекания» цвета центра,
-  проверка согласованности (количество цветов + невозможные кусочки).
-- Ручной ввод цветов на развёртке.
-- Решатель Kociemba Two-Phase (библиотека `cubejs`) с 3D-анимацией поворотов.
-- Обучение: пошаговый послойный метод из 7 шагов с алгоритмами и 3D-превью.
-- Инструкция по использованию, настройки (тема/язык/скорость), 4 языка.
+## Features
 
-## Запуск
+- Camera scanning: capture each face with a shutter button, colour hints for the neighbouring centres around the frame, automatic correction of centre colour bleed, consistency checks (colour counts and impossible pieces)
+- Manual colour input on an unfolded cube net
+- Kociemba two-phase solver (`cubejs`) with an animated 3D cube showing each move
+- Learning mode: the 7-step layer-by-layer beginner method with algorithms and 3D previews
+- Built-in guide and settings for theme, language and animation speed
+- Four languages: English, Polish, Ukrainian, Russian
+
+## Getting started
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173 (для камеры на телефоне нужен https или туннель)
-npm run build      # сборка в dist/
-npx cap add android
-npx cap add ios
-npm run cap:sync
+npm run dev        # http://localhost:5173
+npm run build      # production build in dist/
 ```
 
-## Структура
+The camera on a phone requires HTTPS. For local testing use a tunnel or `vite --host` with a certificate.
+
+## Mobile builds
+
+```bash
+npm run build
+npx cap add android      # or: npx cap add ios
+npm run cap:sync
+npm run cap:android      # opens Android Studio
+```
+
+A debug APK is built by GitHub Actions on every push to `main` (workflow artifacts) and attached to each published GitHub release. A Codemagic configuration (`codemagic.yaml`) is included as an alternative.
+
+## Structure
 
 ```
 src/
-├── App.jsx                  Маршрутизация экранов (без роутера)
-├── main.jsx                 Точка входа, шрифты, тема
-├── i18n.jsx / locales.js    Локализация (ru/en/pl/uk)
-├── screens/                 Экраны (Home, Scan, Manual, Review, Solve, Learn, Help, Settings, About)
-├── components/              TopBar, CubeNet (развёртка), Cube3D (Three.js)
-├── cube/CubeModel.js        Facelet-состояние, ходы, валидация/анализ
-├── solvers/kociemba.js      Решатель (cubejs)
-└── vision/ColorDetector.js  Классификация цвета HSV + сэмплинг грани 3×3
+├── App.jsx                  Screen navigation
+├── main.jsx                 Entry point, fonts, theme
+├── i18n.jsx, locales.js     Localisation (en, pl, uk, ru)
+├── screens/                 Home, Scan, Manual input, Review, Solve, Learn, Help, Settings, About
+├── components/              TopBar, CubeNet (unfolded net), Cube3D (Three.js)
+├── cube/CubeModel.js        Facelet state, moves, validation and analysis
+├── solvers/kociemba.js      Solver wrapper (cubejs)
+└── vision/ColorDetector.js  HSV colour classification and 3x3 face sampling
 ```
 
-## Технологии
+## Stack
 
-React 19, Vite 5, Three.js (3D), cubejs (решатель), react-icons,
-@fontsource/inter (шрифт, локально), Capacitor 6.
+React 19, Vite 5, Three.js, cubejs, Capacitor 6, react-icons, @fontsource/inter.
 
+## License
+
+[MIT](LICENSE) © Vadym Zelenko
