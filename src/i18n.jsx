@@ -1,19 +1,28 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { translations } from './locales.js';
 
-const LanguageContext = createContext({ lang: 'ru', setLang: () => {}, t: (k) => k });
-
 export const LANGS = [
-  { id: 'ru', label: 'Русский' },
   { id: 'en', label: 'English' },
   { id: 'pl', label: 'Polski' },
   { id: 'uk', label: 'Українська' },
+  { id: 'ru', label: 'Русский' },
 ];
 
+function detectLang() {
+  try {
+    const saved = localStorage.getItem('lang');
+    if (saved && translations[saved]) return saved;
+  } catch { /* ignore */ }
+  const nav = (navigator.languages || [navigator.language || 'en']).map((l) => l.slice(0, 2).toLowerCase());
+  return nav.find((l) => translations[l]) || 'en';
+}
+
+const LanguageContext = createContext({ lang: 'en', setLang: () => {}, t: (k) => k });
+
 export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(() => {
-    try { return localStorage.getItem('lang') || 'ru'; } catch { return 'ru'; }
-  });
+  const [lang, setLangState] = useState(detectLang);
+
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   const setLang = useCallback((l) => {
     setLangState(l);
@@ -21,18 +30,23 @@ export function LanguageProvider({ children }) {
   }, []);
 
   const t = useCallback((key, vars) => {
-    let s = (translations[lang] && translations[lang][key]) || translations.ru[key] || key;
+    let s = translations[lang]?.[key] ?? translations.en[key] ?? translations.ru[key] ?? key;
     if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
     return s;
   }, [lang]);
 
-  return (
-    <LanguageContext.Provider value={{ lang, setLang, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useT() {
   return useContext(LanguageContext);
+}
+
+/** Human-readable text for an analyzeState() error. */
+export function errorText(t, err) {
+  const vars = { ...(err.vars || {}) };
+  if (vars.piece) vars.piece = vars.piece.split('').map((f) => t('face.' + f)).join(' · ');
+  if (vars.color) vars.color = t('color.' + vars.color);
+  return t(err.key, vars);
 }

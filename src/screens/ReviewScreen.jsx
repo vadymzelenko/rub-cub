@@ -1,121 +1,73 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { FiAlertTriangle, FiCheckCircle, FiEdit3, FiPlay } from 'react-icons/fi';
 import TopBar from '../components/TopBar.jsx';
 import CubeNet from '../components/CubeNet.jsx';
+import ColorPicker from '../components/ColorPicker.jsx';
 import { analyzeState, FACE_ORDER } from '../cube/CubeModel.js';
-import { CUBE_COLORS, FACE_NEIGHBORS } from '../vision/ColorDetector.js';
-import { useT } from '../i18n.jsx';
+import { useT, errorText } from '../i18n.jsx';
 import { useNav } from '../navigation.jsx';
 
 export default function ReviewScreen({ faceletState }) {
-    const { t } = useT();
-    const { navigate } = useNav();
-    const [state, setState] = useState(faceletState);
-    const [face, setFace] = useState('U');
-    const [view, setView] = useState('face'); // 'face' | 'net'
+  const { t } = useT();
+  const { navigate } = useNav();
+  const [state, setState] = useState(faceletState || '');
+  const [editing, setEditing] = useState(null); // sticker index being edited
 
-    const { valid, errors } = analyzeState(state);
-    const base = FACE_ORDER.indexOf(face) * 9;
-    const faceStr = state.slice(base, base + 9);
-    const neighbors = FACE_NEIGHBORS[face];
+  const { valid, errors } = useMemo(() => analyzeState(state), [state]);
+  const counts = useMemo(() => {
+    const c = Object.fromEntries(FACE_ORDER.map((f) => [f, 0]));
+    for (const ch of state) if (c[ch] !== undefined) c[ch]++;
+    return c;
+  }, [state]);
 
-    const cycleCell = (i) => {
-        if (i === 4) return;
-        setState((s) => {
-            const arr = s.split('');
-            const cur = arr[base + i];
-            arr[base + i] = FACE_ORDER[(FACE_ORDER.indexOf(cur) + 1) % FACE_ORDER.length];
-            return arr.join('');
-        });
-    };
+  const setColor = (f) => {
+    setState((s) => { const a = s.split(''); a[editing] = f; return a.join(''); });
+    setEditing(null);
+  };
 
-    return (
-        <div className="app scroll">
-            <TopBar title={t('review.title')} />
+  return (
+    <div className="page">
+      <TopBar title={t('review.title')} subtitle={t('review.subtitle')} />
 
-            <div className="review-toggle">
-                <button
-                    className={'review-toggle-btn' + (view === 'face' ? ' active' : '')}
-                    onClick={() => setView('face')}
-                >{t('review.viewFace')}</button>
-                <button
-                    className={'review-toggle-btn' + (view === 'net' ? ' active' : '')}
-                    onClick={() => setView('net')}
-                >{t('review.viewNet')}</button>
-            </div>
+      <div className="net-card">
+        <CubeNet state={state} onCellTap={setEditing} highlight={editing != null ? new Set([editing]) : undefined} />
+      </div>
 
-            {view === 'face' && (
-                <>
-                    <div className="review-tabs">
-                        {FACE_ORDER.map((f) => (
-                            <button
-                                key={f}
-                                className={'review-tab' + (face === f ? ' active' : '')}
-                                onClick={() => setFace(f)}
-                            >
-                                <span className="review-tab-dot" style={{ background: CUBE_COLORS[f] }} />
-                                <span className="review-tab-label">{t('face.' + f)}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="review-face">
-                        <div className="review-face-name">{t('face.' + face)}</div>
-                        <div className="review-face-grid">
-                            {neighbors && (
-                                <>
-                                    <div className="review-strip top"    style={{ background: CUBE_COLORS[neighbors.top] }} />
-                                    <div className="review-strip right"  style={{ background: CUBE_COLORS[neighbors.right] }} />
-                                    <div className="review-strip bottom" style={{ background: CUBE_COLORS[neighbors.bottom] }} />
-                                    <div className="review-strip left"   style={{ background: CUBE_COLORS[neighbors.left] }} />
-                                </>
-                            )}
-                            {faceStr.split('').map((c, i) => (
-                                <button
-                                    key={i}
-                                    className={'review-cell' + (i === 4 ? ' center' : '')}
-                                    style={{ background: CUBE_COLORS[c] || '#3a3a3a' }}
-                                    onClick={() => cycleCell(i)}
-                                />
-                            ))}
-                        </div>
-                        <div className="review-face-hint">{t('review.tapHint')}</div>
-                    </div>
-                </>
-            )}
-
-            {view === 'net' && (
-                <div className="review-net-wrap">
-                    <div className="net-wrap"><CubeNet faceletState={state} /></div>
-                    <div className="review-face-hint">{t('review.netHint')}</div>
-                </div>
-            )}
-
-            <div className={'review-status ' + (valid ? 'success' : 'error')}>
-                {valid ? (
-                    <div className="review-status-ok">✓ {t('review.ok')}</div>
-                ) : (
-                    <>
-                        <div className="review-status-title">{t('manual.error')} ({errors.length})</div>
-                        <ul className="review-errors">
-                            {errors.map((e, i) => <li key={i}>{e}</li>)}
-                        </ul>
-                    </>
-                )}
-            </div>
-
-            <div className="controls">
-                <button className="btn" onClick={() => navigate('manual', { prefill: state })} style={{ flex: 1 }}>
-                    {t('review.edit')}
-                </button>
-                <button
-                    className="btn primary"
-                    disabled={!valid}
-                    onClick={() => navigate('solve', { faceletState: state })}
-                    style={{ flex: 1 }}
-                >
-                    {t('review.solve')}
-                </button>
-            </div>
+      {editing != null ? (
+        <div className="panel">
+          <p className="panel-title">{t('review.pick')}</p>
+          <ColorPicker value={state[editing]} onChange={setColor} counts={counts} />
         </div>
-    );
+      ) : (
+        <div className={'status-card ' + (valid ? 'ok' : 'bad')}>
+          {valid ? (
+            <div className="status-head"><FiCheckCircle /> {t('review.ok')}</div>
+          ) : (
+            <>
+              <div className="status-head"><FiAlertTriangle /> {t('review.problems', { n: errors.length })}</div>
+              <ul className="status-list">
+                {errors.slice(0, 6).map((e, i) => <li key={i}>{errorText(t, e)}</li>)}
+              </ul>
+              <p className="status-foot">{t('review.tapHint')}</p>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="sticky-bottom">
+        <div className="btn-row">
+          <button className="btn btn-secondary" onClick={() => navigate('manual', { prefill: state }, { replace: true })}>
+            <FiEdit3 /> {t('review.edit')}
+          </button>
+          <button
+            className="btn btn-primary grow"
+            disabled={!valid}
+            onClick={() => navigate('solve', { faceletState: state })}
+          >
+            <FiPlay /> {t('review.solve')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

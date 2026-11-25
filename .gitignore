@@ -1,7 +1,9 @@
 node_modules/
 dist/
-android/
+dev-dist/
 ios/
 *.apk
 *.aab
+*.jks
+*.keystore
 .DS_Store

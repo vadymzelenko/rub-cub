@@ -1,116 +1,187 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { FiSkipBack, FiChevronLeft, FiPlay, FiPause, FiChevronRight, FiSkipForward, FiAlertTriangle, FiAward } from 'react-icons/fi';
 import TopBar from '../components/TopBar.jsx';
 import Cube3D from '../components/Cube3D.jsx';
 import { solveKociemba } from '../solvers/kociemba.js';
-import { applyMoves } from '../cube/CubeModel.js';
-import { FiSkipBack, FiChevronLeft, FiPlay, FiPause, FiChevronRight, FiSkipForward } from 'react-icons/fi';
+import { applyMoves, invertMove } from '../cube/CubeModel.js';
+import { CUBE_COLORS } from '../vision/ColorDetector.js';
+import { useSettings, SPEED_MS } from '../settings.js';
 import { useT } from '../i18n.jsx';
 import { useNav } from '../navigation.jsx';
 
-const SPEED_MS = { slow: 2400, normal: 1500, fast: 800 };
+// Keeps the screen on while the user follows the moves (where supported).
+function useWakeLock(active) {
+  useEffect(() => {
+    if (!active || !navigator.wakeLock) return;
+    let lock = null, released = false;
+    const acquire = () => navigator.wakeLock.request('screen').then((l) => { if (released) l.release(); else lock = l; }).catch(() => {});
+    acquire();
+    const onVis = () => { if (!document.hidden && !released) acquire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { released = true; lock?.release().catch(() => {}); document.removeEventListener('visibilitychange', onVis); };
+  }, [active]);
+}
+
+function moveText(t, m) {
+  if (!m) return '';
+  const dir = m[1] === '2' ? t('move.twice') : m[1] === "'" ? t('move.ccw') : t('move.cw');
+  return t('move.face.' + m[0]) + ' — ' + dir;
+}
 
 export default function SolveScreen({ faceletState }) {
   const { t } = useT();
+  const { home } = useNav();
+  const { speed } = useSettings();
+  const duration = SPEED_MS[speed] || 520;
   const cubeRef = useRef(null);
-  const [moves, setMoves] = useState([]);
-  const [step, setStep] = useState(0);
-  const [status, setStatus] = useState(t('solve.computing'));
-  const [playing, setPlaying] = useState(false);
-  const [animating, setAnimating] = useState(false);
+  const stripRef = useRef(null);
+
+  const [moves, setMoves] = useState(null); // null = computing
   const [error, setError] = useState('');
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const busy = useRef(false);
   const stepRef = useRef(0);
   const playingRef = useRef(false);
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
 
-  const duration = SPEED_MS[localStorage.getItem('cubeSpeed') || 'normal'] || 1500;
+  useWakeLock(!!moves?.length);
 
   useEffect(() => {
     let cancelled = false;
-    setMoves([]); setStep(0); stepRef.current = 0;
-    setStatus(t('solve.computing')); setError('');
-    (async () => {
-      try {
-        const result = await solveKociemba(faceletState);
-        if (cancelled) return;
-        setMoves(result.moves);
-        setStatus(t('solve.solution', { n: result.length }));
-        cubeRef.current?.setState(faceletState);
-      } catch (e) {
-        if (!cancelled) { setStatus('Error'); setError(String(e.message || e)); }
-      }
-    })();
+    setMoves(null); setError(''); setStep(0); stepRef.current = 0;
+    solveKociemba(faceletState)
+      .then((m) => { if (!cancelled) { setMoves(m); cubeRef.current?.setState(faceletState); } })
+      .catch((e) => { if (!cancelled) setError(String(e?.message || e)); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [faceletState]);
 
   useEffect(() => () => { playingRef.current = false; }, []);
 
-  const doMove = async (i) => {
-    if (i < 0 || i >= moves.length) return;
-    setAnimating(true);
-    await cubeRef.current?.playMove(moves[i], duration);
-    setAnimating(false);
+  // Keep the current move chip in view.
+  useEffect(() => {
+    const el = stripRef.current?.querySelector('.move-chip.current');
+    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [step, moves]);
+
+  const goTo = useCallback((n) => {
+    if (!moves) return;
+    stop();
+    n = Math.max(0, Math.min(moves.length, n));
+    stepRef.current = n;
+    setStep(n);
+    cubeRef.current?.setState(applyMoves(faceletState, moves.slice(0, n)));
+  }, [moves, faceletState]);
+
+  const forward = async () => {
+    if (busy.current || !moves || stepRef.current >= moves.length) return false;
+    busy.current = true;
+    const i = stepRef.current;
     stepRef.current = i + 1;
     setStep(i + 1);
+    await cubeRef.current?.playMove(moves[i], durationRef.current);
+    busy.current = false;
+    return true;
+  };
+
+  const backward = async () => {
+    stop();
+    if (busy.current || !moves || stepRef.current <= 0) return;
+    busy.current = true;
+    const i = stepRef.current - 1;
+    stepRef.current = i;
+    setStep(i);
+    await cubeRef.current?.playMove(invertMove(moves[i]), durationRef.current);
+    busy.current = false;
   };
 
   const play = async () => {
-    if (playingRef.current) return;
+    if (playingRef.current || !moves) return;
+    if (stepRef.current >= moves.length) goTo(0);
     playingRef.current = true;
     setPlaying(true);
-    for (let i = stepRef.current; i < moves.length; i++) {
-      if (!playingRef.current) break;
-      await doMove(i);
+    while (playingRef.current && stepRef.current < moves.length) {
+      if (!(await forward())) break;
+      await new Promise((r) => setTimeout(r, Math.min(260, durationRef.current * 0.4)));
     }
     playingRef.current = false;
     setPlaying(false);
   };
 
-  const stop = () => { playingRef.current = false; setPlaying(false); };
+  function stop() { playingRef.current = false; setPlaying(false); }
 
-  const reset = () => {
-    stop();
-    stepRef.current = 0;
-    setStep(0);
-    cubeRef.current?.setState(faceletState);
-  };
-
-  const skipEnd = () => {
-    stop();
-    stepRef.current = moves.length;
-    setStep(moves.length);
-    cubeRef.current?.setState(applyMoves(faceletState, moves.join(' ')));
-  };
-
-  const strip = moves.slice(Math.max(0, step - 4), step + 5).join(' ');
+  const total = moves?.length ?? 0;
+  const solved = moves && step >= total;
+  const nextMove = moves?.[step];
 
   return (
-      <div className="app">
-        <TopBar title={t('solve.title')} />
+    <div className="page page-solve">
+      <TopBar
+        title={t('solve.title')}
+        subtitle={moves ? t('solve.solution', { n: total }) : error ? '' : t('solve.computing')}
+      />
 
-        <div className="status" style={{ marginTop: 8 }}>{status}</div>
-
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
-          <Cube3D ref={cubeRef} size={260} />
-        </div>
-
-        <div className="move-big">{moves[step] || '—'}</div>
-        <div className="status">{step} / {moves.length}</div>
-        <div className="move-strip">{strip}</div>
-        {error && <div className="status error" style={{ marginTop: 8 }}>{error}</div>}
-
-        <div className="controls">
-          <button className="btn" onClick={reset}><FiSkipBack /></button>
-          <button className="btn" onClick={() => { stop(); stepRef.current = Math.max(0, stepRef.current - 1); setStep(stepRef.current); }}>
-            <FiChevronLeft />
-          </button>
-          <button className="btn primary" onClick={playing ? stop : play}>
-            {playing ? <FiPause /> : <FiPlay />}
-          </button>
-          <button className="btn" disabled={animating} onClick={() => { stop(); doMove(stepRef.current); }}>
-            <FiChevronRight />
-          </button>
-          <button className="btn" onClick={skipEnd}><FiSkipForward /></button>
-        </div>
+      <div className="orientation">
+        <span className="ori-chip" style={{ '--c': CUBE_COLORS.U }} />
+        <span>{t('solve.holdTop')}</span>
+        <span className="ori-chip" style={{ '--c': CUBE_COLORS.F }} />
+        <span>{t('solve.holdFront')}</span>
       </div>
+
+      <div className="cube-stage">
+        <Cube3D ref={cubeRef} initialState={faceletState} />
+        {!moves && !error && <div className="cube-stage-overlay"><div className="spinner" /></div>}
+      </div>
+
+      {error ? (
+        <div className="status-card bad">
+          <div className="status-head"><FiAlertTriangle /> {t('solve.error')}</div>
+          <p className="status-foot">{t('solve.errorHint')}</p>
+        </div>
+      ) : (
+        <>
+          <div className="move-now">
+            {solved ? (
+              <>
+                <span className="move-big done"><FiAward /></span>
+                <span className="move-desc">{total ? t('solve.done') : t('solve.already')}</span>
+              </>
+            ) : (
+              <>
+                <span className="move-big">{nextMove || '…'}</span>
+                <span className="move-desc">{moves ? moveText(t, nextMove) : ''}</span>
+              </>
+            )}
+          </div>
+
+          <div className="progress"><span style={{ width: total ? (step / total) * 100 + '%' : 0 }} /></div>
+
+          <div className="move-strip" ref={stripRef}>
+            {(moves || []).map((m, i) => (
+              <button
+                key={i}
+                className={'move-chip' + (i < step ? ' past' : '') + (i === step ? ' current' : '')}
+                onClick={() => goTo(i)}
+              >{m}</button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="player">
+        <button className="icon-btn big" onClick={() => goTo(0)} disabled={!moves || step === 0} aria-label={t('solve.restart')}><FiSkipBack size={20} /></button>
+        <button className="icon-btn big" onClick={backward} disabled={!moves || step === 0} aria-label={t('solve.prev')}><FiChevronLeft size={26} /></button>
+        <button className="play-btn" onClick={playing ? stop : play} disabled={!moves || !total} aria-label={playing ? t('solve.pause') : t('solve.play')}>
+          {playing ? <FiPause size={26} /> : <FiPlay size={26} />}
+        </button>
+        <button className="icon-btn big" onClick={() => { stop(); forward(); }} disabled={!moves || solved} aria-label={t('solve.next')}><FiChevronRight size={26} /></button>
+        <button className="icon-btn big" onClick={() => goTo(total)} disabled={!moves || solved} aria-label={t('solve.end')}><FiSkipForward size={20} /></button>
+      </div>
+
+      {solved && total > 0 && (
+        <button className="btn btn-secondary full" onClick={home}>{t('solve.home')}</button>
+      )}
+    </div>
   );
 }

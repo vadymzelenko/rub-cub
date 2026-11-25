@@ -1,17 +1,23 @@
 {
-  "appId": "com.example.cubesolver",
-  "appName": "Cube Solver",
+  "appId": "dev.vzstudio.rubcub",
+  "appName": "RubCub",
   "webDir": "dist",
-  "bundledWebRuntime": false,
-  "server": {
-    "androidScheme": "https"
-  },
-  "ios": {
-    "contentInset": "always"
+  "android": {
+    "backgroundColor": "#0b0b0f",
+    "allowMixedContent": false,
+    "captureInput": true
   },
   "plugins": {
-    "Camera": {
-      "presentationStyle": "fullscreen"
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 3000,
+      "backgroundColor": "#0b0b0f",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK"
     }
   }
 }
