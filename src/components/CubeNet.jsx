@@ -4,7 +4,7 @@ import { useT } from '../i18n.jsx';
 const LAYOUT = { U: [2, 1], L: [1, 2], F: [2, 2], R: [3, 2], B: [4, 2], D: [2, 3] };
 
 /** Unfolded cube. `onCellTap(globalIndex)` makes non-centre stickers tappable. */
-export default function CubeNet({ state, onCellTap, highlight }) {
+export default function CubeNet({ state, onCellTap, highlight, errorCells }) {
   const { t } = useT();
   return (
     <div className="net">
@@ -22,7 +22,7 @@ export default function CubeNet({ state, onCellTap, highlight }) {
                   type="button"
                   tabIndex={tappable ? 0 : -1}
                   disabled={!tappable}
-                  className={'sticker' + (center ? ' center' : '') + (c === '?' ? ' empty' : '') + (highlight?.has(k) ? ' flagged' : '')}
+                  className={'sticker' + (center ? ' center' : '') + (c === '?' ? ' empty' : '') + (highlight?.has(k) ? ' flagged' : '') + (errorCells?.has(k) ? ' bad' : '')}
                   style={{ '--c': CUBE_COLORS[c] || 'transparent' }}
                   onClick={tappable ? () => onCellTap(k) : undefined}
                   aria-label={center ? t('face.' + face) : c === '?' ? t('common.empty') : t('color.' + c)}

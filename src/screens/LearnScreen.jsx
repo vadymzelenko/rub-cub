@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { FiChevronDown, FiPlay } from 'react-icons/fi';
+import { FiChevronDown, FiPlay, FiCamera, FiShuffle, FiAward } from 'react-icons/fi';
+import { useNav } from '../navigation.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Cube3D from '../components/Cube3D.jsx';
-import { SOLVED_STATE, applyMoves, invertMoves, parseMoves } from '../cube/CubeModel.js';
+import { SOLVED_STATE, applyMoves, invertMoves, parseMoves, randomScramble } from '../cube/CubeModel.js';
 import { CUBE_COLORS } from '../vision/ColorDetector.js';
 import { useSettings, SPEED_MS } from '../settings.js';
 import { useT } from '../i18n.jsx';
@@ -120,11 +121,45 @@ function LessonDemo({ lesson }) {
 
 export default function LearnScreen() {
   const { t } = useT();
-  const [open, setOpen] = useState(1);
+  const { navigate } = useNav();
+  const [open, setOpen] = useState(null);
 
   return (
     <div className="page">
       <TopBar title={t('learn.title')} subtitle={t('learn.subtitle')} />
+
+      <section className="practice-card">
+        <span className="practice-icon"><FiAward /></span>
+        <h2>{t('learn.practiceTitle')}</h2>
+        <p>{t('learn.practiceText')}</p>
+        <div className="btn-row">
+          <button className="btn btn-secondary" onClick={() => navigate('scan')}><FiCamera /> {t('learn.useMine')}</button>
+          <button className="btn btn-primary grow" onClick={() => navigate('tutor', { scramble: randomScramble(20) })}><FiShuffle /> {t('learn.random')}</button>
+        </div>
+      </section>
+
+      <p className="section-label">{t('learn.theory')}</p>
+      <section className={'lesson' + (open === 0 ? ' open' : '')}>
+        <button className="lesson-head" onClick={() => setOpen(open === 0 ? null : 0)} aria-expanded={open === 0}>
+          <span className="lesson-num">R</span>
+          <span className="row-body">
+            <span className="row-title">{t('help.notationTitle')}</span>
+            <span className="row-desc">{t('learn.notationDesc')}</span>
+          </span>
+          <FiChevronDown className="lesson-chevron" />
+        </button>
+        {open === 0 && (
+          <div className="lesson-body">
+            <div className="lesson-media">
+              <div className="notation-grid">
+                {['R', "R'", 'R2', 'U', 'F', 'L', 'D', 'B'].map((m) => <span key={m} className="algo-move">{m}</span>)}
+              </div>
+              <LessonDemo key="n" lesson={{ algo: "R R' U U'" }} />
+            </div>
+            {t('help.notationBody').split('\n').map((line, i) => <p key={i} className="lesson-how">{line}</p>)}
+          </div>
+        )}
+      </section>
       <div className="lessons">
         {LESSONS.map((l) => {
           const isOpen = open === l.id;

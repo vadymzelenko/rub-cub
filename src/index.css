@@ -543,3 +543,54 @@ button.row:active { background: var(--surface-2); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* ---------- errors on the net ---------- */
+.sticker.bad { outline: 2.5px solid var(--bad); outline-offset: 1px; z-index: 1; animation: bad-pulse 1.1s ease-in-out infinite alternate; }
+@keyframes bad-pulse { from { outline-color: var(--bad); } to { outline-color: color-mix(in srgb, var(--bad) 25%, transparent); } }
+.legend-bad { display: inline-block; width: 12px; height: 12px; border-radius: 3px; outline: 2px solid var(--bad); vertical-align: -1px; margin-right: 4px; }
+.status-text { margin-top: 6px; font-size: 13.5px; color: var(--text-2); }
+.status-foot svg { vertical-align: -2px; }
+.balance { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.balance-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; border-radius: 12px; background: var(--surface-2); }
+.balance-chip { width: 22px; height: 22px; border-radius: 6px; background: var(--c); box-shadow: 0 0 0 1px var(--border-strong); }
+.balance-n { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; }
+.balance-d { font-size: 11.5px; font-weight: 700; }
+.balance-item.ok .balance-d { color: var(--ok); }
+.balance-item.over .balance-d { color: var(--bad); }
+.balance-item.under .balance-d { color: #f59e0b; }
+
+/* ---------- tutor ---------- */
+.stage-bar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.stage-seg { height: 5px; border-radius: 3px; background: var(--surface-2); transition: background-color 0.3s; }
+.stage-seg.done { background: var(--ok); }
+.stage-seg.current { background: var(--text); }
+.tutor-card {
+  padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px; animation: fade-up 0.3s var(--ease) both;
+}
+.tutor-card.done { align-items: center; text-align: center; padding: 22px 16px; }
+.tutor-card.done h2 { font-size: 22px; }
+.tutor-card.done p { color: var(--text-2); }
+.tutor-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tutor-step { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tutor-text { font-size: 15px; line-height: 1.45; }
+.inline-icon { vertical-align: -2px; margin-right: 6px; color: var(--muted); }
+.piece-chips { display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: var(--body-color); }
+.piece-chip { width: 18px; height: 18px; border-radius: 5px; background: var(--c); }
+.algo.compact .algo-move { padding: 4px 9px; font-size: 13.5px; }
+.algo-repeat { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 9px; font-weight: 700; font-size: 13.5px; background: var(--primary); color: var(--on-primary); }
+.cube-stage.small { width: min(100%, 270px); }
+.move-big.rot { font-size: 40px; color: var(--c-orange); }
+.move-chip.rot { color: var(--c-orange); }
+.move-big { animation: fade-up 0.2s var(--ease); }
+
+/* ---------- learn: practice ---------- */
+.practice-card {
+  position: relative; overflow: hidden; padding: 18px; border-radius: var(--r-xl); display: flex; flex-direction: column; gap: 8px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c-green) 22%, var(--bg-elev)), color-mix(in srgb, var(--c-blue) 18%, var(--bg-elev)));
+  border: 1px solid var(--border);
+}
+.practice-card h2 { font-size: 19px; font-weight: 800; }
+.practice-card p { color: var(--text-2); font-size: 14px; margin-bottom: 6px; }
+.practice-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--c-yellow); color: #111; font-size: 20px; }
+.notation-grid { display: flex; flex-wrap: wrap; gap: 6px; align-content: center; justify-content: center; }

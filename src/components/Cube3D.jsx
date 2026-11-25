@@ -14,6 +14,10 @@ const MOVES = {
   B: { axis: 'z', layer: -1, angle: Math.PI / 2 },
   R: { axis: 'x', layer: 1, angle: -Math.PI / 2 },
   L: { axis: 'x', layer: -1, angle: Math.PI / 2 },
+  // Whole-cube rotations
+  x: { axis: 'x', layer: null, angle: -Math.PI / 2 },
+  y: { axis: 'y', layer: null, angle: -Math.PI / 2 },
+  z: { axis: 'z', layer: null, angle: -Math.PI / 2 },
 };
 const AXES = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
 const NORMALS = {
@@ -208,7 +212,7 @@ const Cube3D = forwardRef(function Cube3D({ initialState, autoRotate = false, cl
       const sign = move[1] === "'" ? -1 : 1;
       const total = def.angle * sign * times;
       const ai = { x: 0, y: 1, z: 2 }[def.axis];
-      const layer = cubies.filter((c) => c.pos[ai] === def.layer);
+      const layer = def.layer === null ? cubies : cubies.filter((c) => c.pos[ai] === def.layer);
       const pivot = new THREE.Group();
       cubeGroup.add(pivot);
       layer.forEach((c) => pivot.attach(c.mesh));

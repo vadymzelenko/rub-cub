@@ -14,6 +14,7 @@ const ScanScreen = lazy(() => import('./screens/ScanScreen.jsx'));
 const CalibrateScreen = lazy(() => import('./screens/CalibrateScreen.jsx'));
 const SolveScreen = lazy(() => import('./screens/SolveScreen.jsx'));
 const LearnScreen = lazy(() => import('./screens/LearnScreen.jsx'));
+const TutorScreen = lazy(() => import('./screens/TutorScreen.jsx'));
 
 const SCREENS = {
   home: HomeScreen,
@@ -24,6 +25,7 @@ const SCREENS = {
   review: ReviewScreen,
   solve: SolveScreen,
   learn: LearnScreen,
+  tutor: TutorScreen,
   settings: SettingsScreen,
   about: AboutScreen,
   help: HelpScreen,

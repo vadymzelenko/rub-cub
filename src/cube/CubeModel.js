@@ -18,41 +18,87 @@ export const SOLVED_STATE = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBB
 export const EMPTY_STATE = FACE_ORDER.map((f) => '????' + f + '????').join('');
 
 const FACE_INDEX = { U: 0, R: 9, F: 18, D: 27, L: 36, B: 45 };
-const idx = (face, i) => FACE_INDEX[face] + i;
+export { FACE_INDEX };
 
-// Each quarter turn = rotate the face itself + three 4-cycles of the adjacent strips.
-// Verified against cubejs for every move.
-const MOVE_DEFS = {
-  U: [[idx('F', 0), idx('L', 0), idx('B', 0), idx('R', 0)], [idx('F', 1), idx('L', 1), idx('B', 1), idx('R', 1)], [idx('F', 2), idx('L', 2), idx('B', 2), idx('R', 2)]],
-  D: [[idx('F', 6), idx('R', 6), idx('B', 6), idx('L', 6)], [idx('F', 7), idx('R', 7), idx('B', 7), idx('L', 7)], [idx('F', 8), idx('R', 8), idx('B', 8), idx('L', 8)]],
-  F: [[idx('U', 6), idx('R', 0), idx('D', 2), idx('L', 8)], [idx('U', 7), idx('R', 3), idx('D', 1), idx('L', 5)], [idx('U', 8), idx('R', 6), idx('D', 0), idx('L', 2)]],
-  B: [[idx('U', 0), idx('L', 6), idx('D', 8), idx('R', 2)], [idx('U', 1), idx('L', 3), idx('D', 7), idx('R', 5)], [idx('U', 2), idx('L', 0), idx('D', 6), idx('R', 8)]],
-  L: [[idx('U', 0), idx('F', 0), idx('D', 0), idx('B', 8)], [idx('U', 3), idx('F', 3), idx('D', 3), idx('B', 5)], [idx('U', 6), idx('F', 6), idx('D', 6), idx('B', 2)]],
-  R: [[idx('U', 2), idx('B', 6), idx('D', 2), idx('F', 2)], [idx('U', 5), idx('B', 3), idx('D', 5), idx('F', 5)], [idx('U', 8), idx('B', 0), idx('D', 8), idx('F', 8)]],
-};
-const CW = [6, 3, 0, 7, 4, 1, 8, 5, 2];
+// ---------- geometry ----------
+// Every sticker has a cubie position (x, y, z in -1..1) and an outward normal.
+// Moves are rotations of the stickers in one layer (or the whole cube for x/y/z),
+// precomputed as permutations of the 54 facelet indices.
+const NORMAL = { U: [0, 1, 0], D: [0, -1, 0], F: [0, 0, 1], B: [0, 0, -1], R: [1, 0, 0], L: [-1, 0, 0] };
 
-function quarterTurn(arr, face) {
-  const b = FACE_INDEX[face];
-  const src = arr.slice(b, b + 9);
-  CW.forEach((from, to) => { arr[b + to] = src[from]; });
-  for (const [a, c1, c2, d] of MOVE_DEFS[face]) {
-    const tmp = arr[d];
-    arr[d] = arr[c2]; arr[c2] = arr[c1]; arr[c1] = arr[a]; arr[a] = tmp;
+function stickerGeometry(i) {
+  const face = FACE_ORDER[(i / 9) | 0];
+  const row = ((i % 9) / 3) | 0, col = i % 3;
+  let p;
+  switch (face) {
+    case 'U': p = [col - 1, 1, row - 1]; break;
+    case 'D': p = [col - 1, -1, 1 - row]; break;
+    case 'F': p = [col - 1, 1 - row, 1]; break;
+    case 'B': p = [1 - col, 1 - row, -1]; break;
+    case 'R': p = [1, 1 - row, 1 - col]; break;
+    default: p = [-1, 1 - row, col - 1]; // L
   }
+  return { p, n: NORMAL[face] };
+}
+
+// Quarter turn (clockwise when looking at the face). axis 0=x 1=y 2=z, layer null = whole cube.
+const QUARTER = {
+  U: [1, 1, -1], D: [1, -1, 1], R: [0, 1, -1], L: [0, -1, 1], F: [2, 1, -1], B: [2, -1, 1],
+  x: [0, null, -1], y: [1, null, -1], z: [2, null, -1],
+};
+
+function rotate(v, axis, s) { // rotate by s*90 degrees around axis
+  const [x, y, z] = v;
+  if (axis === 0) return [x, -z * s, y * s];
+  if (axis === 1) return [z * s, y, -x * s];
+  return [-y * s, x * s, z];
+}
+
+const GEO = Array.from({ length: 54 }, (_, i) => stickerGeometry(i));
+const KEY = (g) => g.p.join() + '|' + g.n.join();
+const INDEX_OF = new Map(GEO.map((g, i) => [KEY(g), i]));
+
+const PERM = {}; // PERM[m][i] = where the sticker at i goes
+for (const [m, [axis, layer, s]] of Object.entries(QUARTER)) {
+  PERM[m] = GEO.map((g, i) => {
+    if (layer !== null && g.p[axis] !== layer) return i;
+    return INDEX_OF.get(KEY({ p: rotate(g.p, axis, s), n: rotate(g.n, axis, s) }));
+  });
 }
 
 export function isValidMove(move) {
-  return /^[URFDLB](2|')?$/.test(move);
+  return /^[URFDLBxyz](2|')?$/.test(move);
 }
 
-/** Applies a single move ("R", "U'", "F2") and returns the new state. */
+/** Applies one move ("R", "U'", "F2") or whole-cube rotation ("y", "z2"). */
 export function applyMove(state, move) {
   if (!isValidMove(move)) throw new Error('Bad move: ' + move);
+  const perm = PERM[move[0]];
   const times = move[1] === "'" ? 3 : move[1] === '2' ? 2 : 1;
-  const arr = state.split('');
-  for (let t = 0; t < times; t++) quarterTurn(arr, move[0]);
-  return arr.join('');
+  let cur = state;
+  for (let t = 0; t < times; t++) {
+    const out = new Array(54);
+    for (let i = 0; i < 54; i++) out[perm[i]] = cur[i];
+    cur = out.join('');
+  }
+  return cur;
+}
+
+/** Permutation of a whole move sequence: sticker at i ends at result[i]. */
+export function sequencePerm(moves) {
+  let p = Array.from({ length: 54 }, (_, i) => i);
+  for (const m of parseMoves(moves)) {
+    const base = PERM[m[0]];
+    const times = m[1] === "'" ? 3 : m[1] === '2' ? 2 : 1;
+    for (let t = 0; t < times; t++) p = p.map((v) => base[v]);
+  }
+  return p;
+}
+
+export function applyPerm(state, perm) {
+  const out = new Array(54);
+  for (let i = 0; i < 54; i++) out[perm[i]] = state[i];
+  return out.join('');
 }
 
 export function parseMoves(moves) {
@@ -83,11 +129,11 @@ export function isSolved(state) {
 
 // Physical pieces: sticker indices in cubejs order (first sticker is U/D for every corner
 // and edge in the U/D layers, F/B for the middle-layer edges).
-const CORNERS = [
+export const CORNERS = [
   ['URF', [8, 9, 20]], ['UFL', [6, 18, 38]], ['ULB', [0, 36, 47]], ['UBR', [2, 45, 11]],
   ['DFR', [29, 26, 15]], ['DLF', [27, 44, 24]], ['DBL', [33, 53, 42]], ['DRB', [35, 17, 51]],
 ];
-const EDGES = [
+export const EDGES = [
   ['UR', [5, 10]], ['UF', [7, 19]], ['UL', [3, 37]], ['UB', [1, 46]],
   ['DR', [32, 16]], ['DF', [28, 25]], ['DL', [30, 43]], ['DB', [34, 52]],
   ['FR', [23, 12]], ['FL', [21, 41]], ['BL', [50, 39]], ['BR', [48, 14]],
@@ -138,7 +184,7 @@ export function analyzeState(state) {
     const piece = rot ? CORNERS.findIndex(([, d]) => d.map((i) => SOLVED_STATE[i]).join('') === rot) : -1;
     if (piece < 0) {
       piecesOk = false;
-      errors.push({ key: new Set(c).size < 3 ? 'err.cornerSame' : 'err.cornerBad', vars: { piece: name } });
+      errors.push({ key: new Set(c).size < 3 ? 'err.cornerSame' : 'err.cornerBad', vars: { piece: name }, cells: ids });
       continue;
     }
     cornerPerm.push(piece);
@@ -158,7 +204,7 @@ export function analyzeState(state) {
     });
     if (piece < 0) {
       piecesOk = false;
-      errors.push({ key: a === b ? 'err.edgeSame' : 'err.edgeBad', vars: { piece: name } });
+      errors.push({ key: a === b ? 'err.edgeSame' : 'err.edgeBad', vars: { piece: name }, cells: ids });
       continue;
     }
     edgePerm.push(piece);
@@ -166,8 +212,9 @@ export function analyzeState(state) {
   }
   if (!piecesOk) return { valid: false, errors };
 
-  if (new Set(cornerPerm).size !== 8) errors.push({ key: 'err.cornerDup' });
-  if (new Set(edgePerm).size !== 12) errors.push({ key: 'err.edgeDup' });
+  const dupCells = (perm, table) => perm.flatMap((p, i) => (perm.indexOf(p) !== perm.lastIndexOf(p) ? table[i][1] : []));
+  if (new Set(cornerPerm).size !== 8) errors.push({ key: 'err.cornerDup', cells: dupCells(cornerPerm, CORNERS) });
+  if (new Set(edgePerm).size !== 12) errors.push({ key: 'err.edgeDup', cells: dupCells(edgePerm, EDGES) });
   if (errors.length) return { valid: false, errors };
 
   if (twist % 3 !== 0) errors.push({ key: 'err.twist' });

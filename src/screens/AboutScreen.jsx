@@ -34,7 +34,7 @@ export default function AboutScreen() {
         <p>{t('about.engine')}</p>
         <p>{t('about.pack')}</p>
       </div>
-      <p className="about-credit">VZstudio · Vadym Zelenko · MIT</p>
+      <p className="about-credit">{t('about.credit')}</p>
     </div>
   );
 }
