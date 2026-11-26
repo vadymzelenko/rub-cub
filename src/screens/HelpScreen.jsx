@@ -1,49 +1,45 @@
+import { FiCamera, FiRepeat, FiPlayCircle, FiSun } from 'react-icons/fi';
 import TopBar from '../components/TopBar.jsx';
 import { useT } from '../i18n.jsx';
-import { CUBE_COLORS } from '../vision/ColorDetector.js';
+import { CUBE_COLORS, ON_COLOR } from '../vision/ColorDetector.js';
 
 const SECTIONS = [
-  { title: 'help.scanTitle',     body: 'help.scanBody' },
-  { title: 'help.notationTitle', body: 'help.notationBody' },
-  { title: 'help.solveTitle',    body: 'help.solveBody' },
-  { title: 'help.tipsTitle',     body: 'help.tipsBody' },
+  { title: 'help.scanTitle', body: 'help.scanBody', icon: FiCamera, accent: 'accent-green' },
+  { title: 'help.notationTitle', body: 'help.notationBody', icon: FiRepeat, accent: 'accent-blue' },
+  { title: 'help.solveTitle', body: 'help.solveBody', icon: FiPlayCircle, accent: 'accent-red' },
+  { title: 'help.tipsTitle', body: 'help.tipsBody', icon: FiSun, accent: 'accent-orange' },
 ];
 
+const POS = { U: [1, 0], L: [0, 1], F: [1, 1], R: [2, 1], B: [3, 1], D: [1, 2] };
+
 function NetIllustration() {
-  const POS = {
-    U: { x: 70,  y: 6 },
-    L: { x: 2,   y: 78 },
-    F: { x: 70,  y: 78 },
-    R: { x: 138, y: 78 },
-    B: { x: 206, y: 78 },
-    D: { x: 70,  y: 150 },
-  };
+  const { t } = useT();
   return (
-      <svg viewBox="0 0 272 220" width="100%" style={{ maxWidth: 280, display: 'block', margin: '14px auto 0' }} role="img" aria-label="Развёртка куба">
-        {Object.entries(POS).map(([face, p]) => (
-            <g key={face}>
-              <rect x={p.x} y={p.y} width="64" height="64" rx="10" fill={CUBE_COLORS[face]} stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
-              <text x={p.x + 32} y={p.y + 32} textAnchor="middle" dominantBaseline="central" fontSize="20" fontWeight="700" fill={(face === 'U' || face === 'D') ? '#000' : '#fff'}>
-                {face}
-              </text>
-            </g>
-        ))}
-      </svg>
+    <div className="help-net" role="img" aria-label={t('help.netAlt')}>
+      {Object.entries(POS).map(([f, [c, r]]) => (
+        <div key={f} className="help-net-face" style={{ gridColumn: c + 1, gridRow: r + 1, background: CUBE_COLORS[f], color: ON_COLOR[f] }}>
+          <strong>{f}</strong>
+          <span>{t('face.' + f)}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
 export default function HelpScreen() {
   const { t } = useT();
   return (
-      <div className="app scroll">
-        <TopBar title={t('help.title')} />
-        <NetIllustration />
+    <div className="page">
+      <TopBar title={t('help.title')} />
+      <NetIllustration />
+      <div className="help-sections">
         {SECTIONS.map((s) => (
-            <div key={s.title} className="help-section">
-              <div className="help-title">{t(s.title)}</div>
-              <div className="help-body">{t(s.body)}</div>
-            </div>
+          <section key={s.title} className="help-card">
+            <h2><span className={'tile-icon small ' + s.accent}><s.icon /></span>{t(s.title)}</h2>
+            {t(s.body).split('\n').map((line, i) => <p key={i}>{line}</p>)}
+          </section>
         ))}
       </div>
+    </div>
   );
 }

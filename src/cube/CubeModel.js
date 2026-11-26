@@ -1,6 +1,6 @@
-// Модель состояния кубика 3x3 в формате facelet-строки (как в стандарте Kociemba/cubejs):
-// 54 символа, порядок граней U R F D L B, каждая грань по 9 наклеек, слева-направо сверху-вниз.
-// Индекс 4 каждой грани (центр) — фиксированный цвет этой грани, не меняется вращениями.
+// Facelet model of a 3x3 cube, in the Kociemba / cubejs string format:
+// 54 characters, faces in the order U R F D L B, 9 stickers each, row by row.
+// Index 4 of each face is the centre; it never moves.
 //
 //            U1 U2 U3
 //            U4 U5 U6
@@ -13,215 +13,228 @@
 //            D7 D8 D9
 
 export const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
-export const FACE_NAME = { U: 'Верх', R: 'Право', F: 'Перёд', D: 'Низ', L: 'Лево', B: 'Зад' };
-
 export const SOLVED_STATE = 'UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
+/** A state with only the centres set; '?' marks an unknown sticker. */
+export const EMPTY_STATE = FACE_ORDER.map((f) => '????' + f + '????').join('');
 
-// Таблицы циклов для базовых поворотов (индексы в 0..53, face-major порядок из FACE_ORDER).
-// Каждый поворот описан как список 4-циклов индексов, которые нужно провернуть.
-// Сгенерировано по стандартной cubejs-нумерации.
 const FACE_INDEX = { U: 0, R: 9, F: 18, D: 27, L: 36, B: 45 };
+export { FACE_INDEX };
 
-function idx(face, i) {
-  return FACE_INDEX[face] + i; // i: 0..8
+// ---------- geometry ----------
+// Every sticker has a cubie position (x, y, z in -1..1) and an outward normal.
+// Moves are rotations of the stickers in one layer (or the whole cube for x/y/z),
+// precomputed as permutations of the 54 facelet indices.
+const NORMAL = { U: [0, 1, 0], D: [0, -1, 0], F: [0, 0, 1], B: [0, 0, -1], R: [1, 0, 0], L: [-1, 0, 0] };
+
+function stickerGeometry(i) {
+  const face = FACE_ORDER[(i / 9) | 0];
+  const row = ((i % 9) / 3) | 0, col = i % 3;
+  let p;
+  switch (face) {
+    case 'U': p = [col - 1, 1, row - 1]; break;
+    case 'D': p = [col - 1, -1, 1 - row]; break;
+    case 'F': p = [col - 1, 1 - row, 1]; break;
+    case 'B': p = [1 - col, 1 - row, -1]; break;
+    case 'R': p = [1, 1 - row, 1 - col]; break;
+    default: p = [-1, 1 - row, col - 1]; // L
+  }
+  return { p, n: NORMAL[face] };
 }
 
-// Циклы граней (сама грань поворачивается по кругу) + прилегающие полосы.
-const MOVE_DEFS = {
-  U: {
-    face: 'U',
-    strips: [
-      [idx('F', 0), idx('L', 0), idx('B', 0), idx('R', 0)],
-      [idx('F', 1), idx('L', 1), idx('B', 1), idx('R', 1)],
-      [idx('F', 2), idx('L', 2), idx('B', 2), idx('R', 2)],
-    ],
-  },
-  D: {
-    face: 'D',
-    strips: [
-      [idx('F', 6), idx('R', 6), idx('B', 6), idx('L', 6)],
-      [idx('F', 7), idx('R', 7), idx('B', 7), idx('L', 7)],
-      [idx('F', 8), idx('R', 8), idx('B', 8), idx('L', 8)],
-    ],
-  },
-  F: {
-    face: 'F',
-    strips: [
-      [idx('U', 6), idx('R', 0), idx('D', 2), idx('L', 8)],
-      [idx('U', 7), idx('R', 3), idx('D', 1), idx('L', 5)],
-      [idx('U', 8), idx('R', 6), idx('D', 0), idx('L', 2)],
-    ],
-  },
-  B: {
-    face: 'B',
-    strips: [
-      [idx('U', 0), idx('L', 6), idx('D', 8), idx('R', 2)],
-      [idx('U', 1), idx('L', 3), idx('D', 7), idx('R', 5)],
-      [idx('U', 2), idx('L', 0), idx('D', 6), idx('R', 8)],
-    ],
-  },
-  L: {
-    face: 'L',
-    strips: [
-      [idx('U', 0), idx('F', 0), idx('D', 0), idx('B', 8)],
-      [idx('U', 3), idx('F', 3), idx('D', 3), idx('B', 5)],
-      [idx('U', 6), idx('F', 6), idx('D', 6), idx('B', 2)],
-    ],
-  },
-  R: {
-    face: 'R',
-    strips: [
-      [idx('U', 2), idx('B', 6), idx('D', 2), idx('F', 2)],
-      [idx('U', 5), idx('B', 3), idx('D', 5), idx('F', 5)],
-      [idx('U', 8), idx('B', 0), idx('D', 8), idx('F', 8)],
-    ],
-  },
+// Quarter turn (clockwise when looking at the face). axis 0=x 1=y 2=z, layer null = whole cube.
+const QUARTER = {
+  U: [1, 1, -1], D: [1, -1, 1], R: [0, 1, -1], L: [0, -1, 1], F: [2, 1, -1], B: [2, -1, 1],
+  x: [0, null, -1], y: [1, null, -1], z: [2, null, -1],
 };
 
-function rotateFaceCW(state, face) {
-  const b = FACE_INDEX[face];
-  const s = state.split('');
-  const src = [s[b], s[b+1], s[b+2], s[b+3], s[b+4], s[b+5], s[b+6], s[b+7], s[b+8]];
-  // поворот 3x3 по часовой: (0,1,2,3,4,5,6,7,8) -> (6,3,0,7,4,1,8,5,2)
-  const order = [6, 3, 0, 7, 4, 1, 8, 5, 2];
-  order.forEach((from, to) => { s[b + to] = src[from]; });
-  return s.join('');
+function rotate(v, axis, s) { // rotate by s*90 degrees around axis
+  const [x, y, z] = v;
+  if (axis === 0) return [x, -z * s, y * s];
+  if (axis === 1) return [z * s, y, -x * s];
+  return [-y * s, x * s, z];
 }
 
-/** Применяет один ход (например "R", "U'", "F2") к facelet-строке, возвращает новую строку. */
-export function applyMove(state, move) {
-  const base = move[0];
-  const mod = move.slice(1); // '', "'", "2"
-  let times = 1;
-  if (mod === "'") times = 3;
-  else if (mod === '2') times = 2;
+const GEO = Array.from({ length: 54 }, (_, i) => stickerGeometry(i));
+const KEY = (g) => g.p.join() + '|' + g.n.join();
+const INDEX_OF = new Map(GEO.map((g, i) => [KEY(g), i]));
 
-  let s = state;
-  for (let t = 0; t < times; t++) {
-    s = _applyQuarterTurn(s, base);
-  }
-  return s;
-}
-
-function _applyQuarterTurn(state, face) {
-  let s = rotateFaceCW(state, face);
-  const arr = s.split('');
-  const def = MOVE_DEFS[face];
-  def.strips.forEach(([a, b, c, d]) => {
-    const tmp = arr[d];
-    arr[d] = arr[c];
-    arr[c] = arr[b];
-    arr[b] = arr[a];
-    arr[a] = tmp;
+const PERM = {}; // PERM[m][i] = where the sticker at i goes
+for (const [m, [axis, layer, s]] of Object.entries(QUARTER)) {
+  PERM[m] = GEO.map((g, i) => {
+    if (layer !== null && g.p[axis] !== layer) return i;
+    return INDEX_OF.get(KEY({ p: rotate(g.p, axis, s), n: rotate(g.n, axis, s) }));
   });
-  return arr.join('');
 }
 
-/** Применяет последовательность ходов через пробел, напр. "R U R' U'". */
-export function applyMoves(state, moveString) {
-  const moves = moveString.trim().split(/\s+/).filter(Boolean);
-  return moves.reduce((s, m) => applyMove(s, m), state);
+export function isValidMove(move) {
+  return /^[URFDLBxyz](2|')?$/.test(move);
 }
 
-/** Проверка: все ли 6 центров разные и по 9 каждого цвета — базовая валидация скана. */
-export function validateState(state) {
-  const errors = [];
-  if (!state || state.length !== 54) {
-    errors.push('Некорректная длина состояния куба');
-    return { valid: false, errors };
+/** Applies one move ("R", "U'", "F2") or whole-cube rotation ("y", "z2"). */
+export function applyMove(state, move) {
+  if (!isValidMove(move)) throw new Error('Bad move: ' + move);
+  const perm = PERM[move[0]];
+  const times = move[1] === "'" ? 3 : move[1] === '2' ? 2 : 1;
+  let cur = state;
+  for (let t = 0; t < times; t++) {
+    const out = new Array(54);
+    for (let i = 0; i < 54; i++) out[perm[i]] = cur[i];
+    cur = out.join('');
   }
-  const counts = {};
-  for (const ch of state) counts[ch] = (counts[ch] || 0) + 1;
-  const colors = Object.keys(counts);
-  if (colors.length !== 6) {
-    errors.push(`Обнаружено ${colors.length} цветов вместо 6 — переснимите грани с ошибками`);
-  }
-  for (const c of colors) {
-    if (counts[c] !== 9) {
-      errors.push(`Цвет ${c}: найдено ${counts[c]} наклеек вместо 9`);
-    }
-  }
-  return { valid: errors.length === 0, errors };
+  return cur;
 }
 
-// Физические кусочки кубика: индексы наклеек (0..53) в facelet-строке.
-// Углы — по 3 наклейки, рёбра — по 2. Нужны для проверки согласованности скана
-// (у реального кусочка все наклейки разных цветов).
-const CORNERS = {
-  URF: [8, 9, 20], UFL: [6, 18, 38], ULB: [0, 36, 47], UBR: [2, 45, 11],
-  DFR: [29, 26, 15], DLF: [27, 44, 24], DBL: [33, 53, 42], DRB: [35, 17, 51],
-};
+/** Permutation of a whole move sequence: sticker at i ends at result[i]. */
+export function sequencePerm(moves) {
+  let p = Array.from({ length: 54 }, (_, i) => i);
+  for (const m of parseMoves(moves)) {
+    const base = PERM[m[0]];
+    const times = m[1] === "'" ? 3 : m[1] === '2' ? 2 : 1;
+    for (let t = 0; t < times; t++) p = p.map((v) => base[v]);
+  }
+  return p;
+}
 
-const EDGES = {
-  UF: [7, 19], UR: [5, 10], UB: [1, 46], UL: [3, 37],
-  DF: [28, 25], DR: [32, 16], DB: [34, 52], DL: [30, 43],
-  FR: [23, 12], FL: [21, 41], BL: [50, 39], BR: [48, 14],
-};
+export function applyPerm(state, perm) {
+  const out = new Array(54);
+  for (let i = 0; i < 54; i++) out[perm[i]] = state[i];
+  return out.join('');
+}
 
-function pieceName(name) {
-  return name.split('').map((ch) => FACE_NAME[ch] || ch).join(' · ');
+export function parseMoves(moves) {
+  if (Array.isArray(moves)) return moves;
+  return String(moves || '').trim().split(/\s+/).filter(Boolean);
+}
+
+export function applyMoves(state, moves) {
+  return parseMoves(moves).reduce(applyMove, state);
+}
+
+export function invertMove(move) {
+  if (move[1] === '2') return move;
+  return move[1] === "'" ? move[0] : move[0] + "'";
+}
+
+export function invertMoves(moves) {
+  return parseMoves(moves).slice().reverse().map(invertMove);
+}
+
+export function isSolved(state) {
+  return FACE_ORDER.every((face) => {
+    const b = FACE_INDEX[face];
+    for (let i = 0; i < 9; i++) if (state[b + i] !== state[b + 4]) return false;
+    return true;
+  });
+}
+
+// Physical pieces: sticker indices in cubejs order (first sticker is U/D for every corner
+// and edge in the U/D layers, F/B for the middle-layer edges).
+export const CORNERS = [
+  ['URF', [8, 9, 20]], ['UFL', [6, 18, 38]], ['ULB', [0, 36, 47]], ['UBR', [2, 45, 11]],
+  ['DFR', [29, 26, 15]], ['DLF', [27, 44, 24]], ['DBL', [33, 53, 42]], ['DRB', [35, 17, 51]],
+];
+export const EDGES = [
+  ['UR', [5, 10]], ['UF', [7, 19]], ['UL', [3, 37]], ['UB', [1, 46]],
+  ['DR', [32, 16]], ['DF', [28, 25]], ['DL', [30, 43]], ['DB', [34, 52]],
+  ['FR', [23, 12]], ['FL', [21, 41]], ['BL', [50, 39]], ['BR', [48, 14]],
+];
+
+function parity(perm) {
+  let p = 0;
+  const seen = new Array(perm.length).fill(false);
+  for (let i = 0; i < perm.length; i++) {
+    if (seen[i]) continue;
+    let len = 0;
+    for (let j = i; !seen[j]; j = perm[j]) { seen[j] = true; len++; }
+    p += len - 1;
+  }
+  return p % 2;
 }
 
 /**
- * Полная проверка состояния: количество наклеек каждого цвета (по 9) + невозможные
- * кусочки (совпадающие наклейки внутри одного угла/ребра). Ошибки — понятные,
- * с указанием граней. Возвращает { valid, errors }.
+ * Full solvability check. Returns { valid, errors } where every error is
+ * { key, vars } — an i18n key plus values, so the UI can show it in any language.
+ * `vars.piece` is a position name such as "URF" (translate each letter with face.*).
  */
 export function analyzeState(state) {
   const errors = [];
-  if (!state || state.length !== 54) {
-    return { valid: false, errors: ['Не удалось прочитать куб — пересканируйте'] };
+  if (!state || state.length !== 54) return { valid: false, errors: [{ key: 'err.length' }] };
+
+  const unknown = [...state].filter((c) => !FACE_ORDER.includes(c)).length;
+  if (unknown) return { valid: false, errors: [{ key: 'err.unknown', vars: { n: unknown } }] };
+
+  const centers = FACE_ORDER.map((f) => state[FACE_INDEX[f] + 4]);
+  if (new Set(centers).size !== 6) errors.push({ key: 'err.centers' });
+
+  const counts = Object.fromEntries(FACE_ORDER.map((f) => [f, 0]));
+  for (const ch of state) counts[ch]++;
+  for (const f of FACE_ORDER) {
+    if (counts[f] !== 9) errors.push({ key: 'err.count', vars: { color: f, n: counts[f] } });
   }
-  const counts = {};
-  for (const ch of state) counts[ch] = (counts[ch] || 0) + 1;
-  for (const [c, n] of Object.entries(counts)) {
-    if (n !== 9) errors.push(`Грань «${FACE_NAME[c] || c}»: найдено ${n} наклеек вместо 9`);
+  if (errors.length) return { valid: false, errors };
+
+  // Corners
+  const cornerPerm = [];
+  let twist = 0;
+  let piecesOk = true;
+  for (const [name, ids] of CORNERS) {
+    const c = ids.map((i) => state[i]);
+    const ori = c.findIndex((x) => x === 'U' || x === 'D');
+    const rot = ori < 0 ? null : [c[ori], c[(ori + 1) % 3], c[(ori + 2) % 3]].join('');
+    const piece = rot ? CORNERS.findIndex(([, d]) => d.map((i) => SOLVED_STATE[i]).join('') === rot) : -1;
+    if (piece < 0) {
+      piecesOk = false;
+      errors.push({ key: new Set(c).size < 3 ? 'err.cornerSame' : 'err.cornerBad', vars: { piece: name }, cells: ids });
+      continue;
+    }
+    cornerPerm.push(piece);
+    twist += ori;
   }
-  for (const [name, idxs] of Object.entries(CORNERS)) {
-    const [a, b, c] = idxs.map((i) => state[i]);
-    if (a === b || b === c || a === c) errors.push(`Угол ${pieceName(name)}: две наклейки одного цвета`);
+
+  // Edges
+  const edgePerm = [];
+  let flip = 0;
+  for (const [name, ids] of EDGES) {
+    const [a, b] = ids.map((i) => state[i]);
+    let piece = -1, f = 0;
+    EDGES.forEach(([, d], j) => {
+      const [x, y] = d.map((i) => SOLVED_STATE[i]);
+      if (x === a && y === b) { piece = j; f = 0; }
+      else if (x === b && y === a) { piece = j; f = 1; }
+    });
+    if (piece < 0) {
+      piecesOk = false;
+      errors.push({ key: a === b ? 'err.edgeSame' : 'err.edgeBad', vars: { piece: name }, cells: ids });
+      continue;
+    }
+    edgePerm.push(piece);
+    flip += f;
   }
-  for (const [name, idxs] of Object.entries(EDGES)) {
-    const [a, b] = idxs.map((i) => state[i]);
-    if (a === b) errors.push(`Ребро ${pieceName(name)}: две наклейки одного цвета`);
-  }
+  if (!piecesOk) return { valid: false, errors };
+
+  const dupCells = (perm, table) => perm.flatMap((p, i) => (perm.indexOf(p) !== perm.lastIndexOf(p) ? table[i][1] : []));
+  if (new Set(cornerPerm).size !== 8) errors.push({ key: 'err.cornerDup', cells: dupCells(cornerPerm, CORNERS) });
+  if (new Set(edgePerm).size !== 12) errors.push({ key: 'err.edgeDup', cells: dupCells(edgePerm, EDGES) });
+  if (errors.length) return { valid: false, errors };
+
+  if (twist % 3 !== 0) errors.push({ key: 'err.twist' });
+  if (flip % 2 !== 0) errors.push({ key: 'err.flip' });
+  if (parity(cornerPerm) !== parity(edgePerm)) errors.push({ key: 'err.parity' });
   return { valid: errors.length === 0, errors };
 }
 
-export class CubeModel {
-  constructor(state = SOLVED_STATE) {
-    this.state = state;
-    this.history = [];
+/** Random solvable state (used by the "scramble" demo in manual input). */
+export function randomScramble(length = 22) {
+  const faces = FACE_ORDER;
+  const axis = { U: 0, D: 0, R: 1, L: 1, F: 2, B: 2 };
+  const out = [];
+  while (out.length < length) {
+    const f = faces[Math.floor(Math.random() * 6)];
+    const prev = out[out.length - 1];
+    const prev2 = out[out.length - 2];
+    if (prev && prev[0] === f) continue;
+    if (prev && prev2 && axis[prev[0]] === axis[f] && prev2[0] === f) continue;
+    out.push(f + ['', "'", '2'][Math.floor(Math.random() * 3)]);
   }
-
-  move(m) {
-    this.state = applyMove(this.state, m);
-    this.history.push(m);
-    return this.state;
-  }
-
-  moveSequence(str) {
-    str.trim().split(/\s+/).filter(Boolean).forEach(m => this.move(m));
-    return this.state;
-  }
-
-  isSolved() {
-    return FACE_ORDER.every(face => {
-      const b = FACE_INDEX[face];
-      const center = this.state[b + 4];
-      for (let i = 0; i < 9; i++) if (this.state[b + i] !== center) return false;
-      return true;
-    });
-  }
-
-  reset() {
-    this.state = SOLVED_STATE;
-    this.history = [];
-  }
-
-  clone() {
-    const c = new CubeModel(this.state);
-    c.history = [...this.history];
-    return c;
-  }
+  return out;
 }

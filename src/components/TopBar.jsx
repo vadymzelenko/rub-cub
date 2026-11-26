@@ -2,21 +2,21 @@ import { FiChevronLeft } from 'react-icons/fi';
 import { useT } from '../i18n.jsx';
 import { useNav } from '../navigation.jsx';
 
-export default function TopBar({ title, onBack }) {
-    const { t } = useT();
-    const { back, canGoBack, navigate } = useNav();
+export default function TopBar({ title, subtitle, onBack, right }) {
+  const { t } = useT();
+  const { back, canGoBack, home } = useNav();
+  const handleBack = onBack || (canGoBack ? back : home);
 
-    // Всегда есть обработчик: сначала onBack (если передали),
-    // потом реальный back из стека, потом — принудительный переход на home.
-    const handleBack = onBack || (canGoBack ? back : () => navigate('home'));
-
-    return (
-        <div className="topbar">
-            <button className="back" onClick={handleBack}>
-                <FiChevronLeft size={18} />
-                {t('nav.back')}
-            </button>
-            <div className="title">{title}</div>
-        </div>
-    );
+  return (
+    <header className="topbar">
+      <button className="icon-btn" onClick={handleBack} aria-label={t('nav.back')}>
+        <FiChevronLeft size={22} />
+      </button>
+      <div className="topbar-title">
+        <h1>{title}</h1>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      <div className="topbar-right">{right}</div>
+    </header>
+  );
 }

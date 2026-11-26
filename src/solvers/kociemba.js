@@ -1,28 +1,42 @@
-// Kociemba Two-Phase решатель на базе cube.js (проверенный JS-порт).
-// Вход — facelet-строка из 54 символов в порядке U R F D L B (совпадает с CubeModel).
-import Cube from 'cubejs';
-import { CubeModel } from '../cube/CubeModel.js';
+// Promise wrapper around the solver worker.
+let worker = null;
+let seq = 0;
+const pending = new Map();
 
-let initialized = false;
-
-/**
- * Решает кубик. Возвращает { moves: string[], moveString, length }.
- * Если куб уже собран (каждая грань одноцветная) — возвращает пустое решение.
- */
-export async function solveKociemba(facelets) {
-  if (new CubeModel(facelets).isSolved()) {
-    return { moves: [], moveString: '', length: 0 };
-  }
-
-  if (!initialized) {
-    await new Promise((r) => setTimeout(r, 30));
-    Cube.initSolver();
-    initialized = true;
-  }
-
-  const cube = Cube.fromString(facelets);
-  const solution = cube.solve();
-  const moves = (solution || '').trim().split(/\s+/).filter(Boolean);
-  return { moves, moveString: moves.join(' '), length: moves.length };
+function getWorker() {
+  if (worker) return worker;
+  worker = new Worker(new URL('./solver.worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = (e) => {
+    const { id, ok, moves, error } = e.data;
+    const p = pending.get(id);
+    if (!p) return;
+    pending.delete(id);
+    if (ok) p.resolve(moves || []);
+    else p.reject(new Error(error));
+  };
+  worker.onerror = (e) => {
+    for (const p of pending.values()) p.reject(new Error(e.message || 'worker error'));
+    pending.clear();
+    worker?.terminate();
+    worker = null;
+  };
+  return worker;
 }
 
+function call(msg) {
+  return new Promise((resolve, reject) => {
+    const id = ++seq;
+    pending.set(id, { resolve, reject });
+    getWorker().postMessage({ id, ...msg });
+  });
+}
+
+/** Builds the solver tables in the background so the first solve is instant. */
+export function warmupSolver() {
+  return call({ type: 'warmup' }).catch(() => {});
+}
+
+/** Resolves to an array of moves such as ["R", "U'", "F2"]. */
+export function solveKociemba(facelets) {
+  return call({ type: 'solve', facelets });
+}

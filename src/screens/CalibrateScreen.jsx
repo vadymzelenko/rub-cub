@@ -1,220 +1,128 @@
 import { useEffect, useRef, useState } from 'react';
+import { FiCheck, FiRotateCcw } from 'react-icons/fi';
 import TopBar from '../components/TopBar.jsx';
-import {
-    averageColor,
-    calibrateColor,
-    resetCalibration,
-    CUBE_COLORS,
-    FACE_ORDER,
-} from '../vision/ColorDetector.js';
+import { averageColor, calibrateColor, resetCalibration, CUBE_COLORS, ON_COLOR } from '../vision/ColorDetector.js';
 import { useT } from '../i18n.jsx';
 import { useNav } from '../navigation.jsx';
 
-function drawCover(ctx, video, w, h) {
-    const vw = video.videoWidth, vh = video.videoHeight;
-    if (!vw || !vh) return;
-    const scale = Math.max(w / vw, h / vh);
-    const sw = w / scale, sh = h / scale;
-    ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
-}
-
-// Тёмный текст на светлых цветах (белый, жёлтый), светлый — на остальных.
-function textColorFor(face) {
-    return face === 'U' || face === 'D' ? '#111' : '#fff';
-}
+const ORDER = ['U', 'D', 'F', 'B', 'R', 'L'];
 
 export default function CalibrateScreen() {
-    const { t } = useT();
-    const { navigate } = useNav();
-    const stageRef = useRef(null);
-    const targetRef = useRef(null);
-    const videoRef = useRef(null);
+  const { t } = useT();
+  const { back } = useNav();
+  const stageRef = useRef(null);
+  const targetRef = useRef(null);
+  const videoRef = useRef(null);
 
-    const [ready, setReady] = useState(false);
-    const [error, setError] = useState('');
-    const [step, setStep] = useState(0);
-    const [flash, setFlash] = useState(false);
-    const [done, setDone] = useState(false);
+  const [status, setStatus] = useState('starting');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [step, setStep] = useState(0);
+  const [flash, setFlash] = useState(false);
+  const done = step >= ORDER.length;
+  const current = ORDER[step];
 
-    const current = FACE_ORDER[step];
-    const total = FACE_ORDER.length;
+  useEffect(() => {
+    let stream = null, disposed = false;
+    (async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('insecure');
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } },
+          audio: false,
+        });
+        if (disposed) { stream.getTracks().forEach((tr) => tr.stop()); return; }
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+        setStatus('ready');
+      } catch (e) {
+        if (disposed) return;
+        setStatus('error');
+        setErrorMsg(e?.name === 'NotAllowedError' ? 'denied' : e?.message === 'insecure' ? 'insecure' : 'unavailable');
+      }
+    })();
+    return () => { disposed = true; stream?.getTracks().forEach((tr) => tr.stop()); };
+  }, []);
 
-    useEffect(() => {
-        const video = videoRef.current;
-        let stream = null;
-        let disposed = false;
+  useEffect(() => {
+    if (!done) return;
+    const id = setTimeout(back, 1100);
+    return () => clearTimeout(id);
+  }, [done, back]);
 
-        async function start() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false,
-                });
-                if (disposed) { stream.getTracks().forEach((t) => t.stop()); return; }
-                if (video) {
-                    video.srcObject = stream;
-                    video.play().catch(() => {});
-                }
-                setReady(true);
-            } catch (e) {
-                setError(t('scan.error') + ' (' + (e.message || e) + ')');
-            }
+  const capture = () => {
+    const video = videoRef.current, stage = stageRef.current, target = targetRef.current;
+    if (done || !video || !stage || !target || video.readyState < 2) return;
+    const sRect = stage.getBoundingClientRect();
+    const tRect = target.getBoundingClientRect();
+    const scale = Math.min(1, 480 / sRect.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(sRect.width * scale);
+    canvas.height = Math.round(sRect.height * scale);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const s = Math.max(canvas.width / vw, canvas.height / vh);
+    const sw = canvas.width / s, sh = canvas.height / s;
+    ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+    const cx = (tRect.left - sRect.left + tRect.width / 2) * scale;
+    const cy = (tRect.top - sRect.top + tRect.height / 2) * scale;
+    calibrateColor(current, averageColor(ctx, cx, cy, tRect.width * scale * 0.25));
+    navigator.vibrate?.(12);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 180);
+    setStep((n) => n + 1);
+  };
+
+  return (
+    <div className="page page-scan">
+      <TopBar
+        title={t('calib.title')}
+        subtitle={done ? t('calib.allDone') : t('calib.step', { n: step + 1, total: ORDER.length })}
+        right={
+          <button className="icon-btn" onClick={() => { resetCalibration(); setStep(0); }} aria-label={t('calib.reset')}>
+            <FiRotateCcw size={19} />
+          </button>
         }
+      />
 
-        start();
-        return () => {
-            disposed = true;
-            stream?.getTracks().forEach((t) => t.stop());
-        };
-    }, []);
+      <div className="scan-progress">
+        {ORDER.map((f, i) => (
+          <span key={f} className={'scan-chip' + (i < step ? ' done' : '') + (i === step ? ' current' : '')} style={{ '--c': CUBE_COLORS[f] }} />
+        ))}
+      </div>
 
-    const capture = () => {
-        if (!ready || done) return;
-        const video = videoRef.current;
-        const stage = stageRef.current;
-        const target = targetRef.current;
-        if (!video || !stage || !target || video.readyState < 2) return;
+      <div className="scan-stage" ref={stageRef}>
+        <video ref={videoRef} autoPlay muted playsInline className="scan-video" />
+        {flash && <div className="scan-flash" />}
+        {status === 'starting' && <div className="scan-overlay"><div className="spinner" /><p>{t('scan.starting')}</p></div>}
+        {status === 'error' && <div className="scan-overlay"><p>{t('scan.err.' + errorMsg)}</p></div>}
+        {status === 'ready' && !done && (
+          <div className="calib-target" ref={targetRef} style={{ '--c': CUBE_COLORS[current] }} />
+        )}
+        {done && (
+          <div className="scan-overlay">
+            <span className="done-badge"><FiCheck size={30} /></span>
+            <p>{t('calib.allDone')}</p>
+          </div>
+        )}
+      </div>
 
-        const canvas = document.createElement('canvas');
-        const sRect = stage.getBoundingClientRect();
-        const tRect = target.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(sRect.width * dpr));
-        const h = Math.max(1, Math.round(sRect.height * dpr));
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        drawCover(ctx, video, w, h);
-
-        const cx = (tRect.left - sRect.left + tRect.width / 2) * dpr;
-        const cy = (tRect.top - sRect.top + tRect.height / 2) * dpr;
-        // Берём пиксели из центра круга — внутри мишени (радиус ~ 30% диаметра).
-        const radius = Math.min(tRect.width, tRect.height) * dpr * 0.2;
-        const { r, g, b } = averageColor(ctx, cx, cy, radius);
-
-        calibrateColor(current, r, g, b);
-        setFlash(true);
-        setTimeout(() => setFlash(false), 200);
-
-        if (step < total - 1) {
-            setStep(step + 1);
-        } else {
-            setDone(true);
-            setTimeout(() => navigate('solverEntry'), 800);
-        }
-    };
-
-    const reset = () => {
-        resetCalibration();
-        setStep(0);
-        setDone(false);
-    };
-
-    return (
-        <div className="app">
-            <TopBar title={t('calib.title')} />
-
-            {/*<div className="status" style={{ marginTop: 4 }}>*/}
-            {/*    {done ? t('calib.allDone') : t('calib.step', { n: step + 1, total })}*/}
-            {/*</div>*/}
-
-            <div className="scan-stage" ref={stageRef}>
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
-                />
-
-                {flash && <div className="scan-flash" />}
-
-                {!ready && !error && (
-                    <div className="scan-placeholder">
-                        <div className="spinner" />
-                        <div>{t('scan.starting')}</div>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="scan-placeholder">
-                        <div>{error}</div>
-                    </div>
-                )}
-
-                {ready && !done && (
-                    <>
-                        <div
-                            className="calib-badge"
-                            style={{
-                                background: CUBE_COLORS[current],
-                                color: textColorFor(current),
-                                borderColor: textColorFor(current) === '#111' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.55)',
-                                textShadow: textColorFor(current) === '#111'
-                                    ? 'none'
-                                    : '0 1px 3px rgba(0, 0, 0, 0.55)',
-                            }}
-                        >
-  <span
-      className="calib-badge-dot"
-      style={{
-          background: textColorFor(current) === '#111'
-              ? 'rgba(0,0,0,0.28)'
-              : 'rgba(0,0,0,0.28)',
-          boxShadow: textColorFor(current) === '#111'
-              ? 'inset 0 0 0 1.5px rgba(0,0,0,0.35)'
-              : 'inset 0 0 0 1.5px rgba(255,255,255,0.6)',
-      }}
-  />
-                            {t('color.' + current)}
-                        </div>
-
-                        <div className="calib-circle-wrap">
-                            <div className="calib-circle" ref={targetRef}>
-                                <div className="calib-circle-inner" />
-                            </div>
-                        </div>
-
-                        <div className="calib-hint-overlay">{t('calib.hint')}</div>
-                    </>
-                )}
-
-                {done && (
-                    <div className="scan-placeholder">
-                        <div style={{ fontSize: 40 }}>✓</div>
-                        <div>{t('calib.allDone')}</div>
-                    </div>
-                )}
-            </div>
-
-            <div className="calib-dots">
-                {FACE_ORDER.map((f, i) => (
-                    <span
-                        key={f}
-                        className={
-                            'calib-dot' +
-                            (i < step ? ' filled' : '') +
-                            (i === step && !done ? ' active' : '')
-                        }
-                        style={{ '--c': CUBE_COLORS[f] }}
-                    />
-                ))}
-            </div>
-
-            <div className="shutter-row">
-                <button
-                    className="shutter"
-                    onClick={capture}
-                    disabled={!ready || done}
-                    aria-label={t('scan.shutter')}
-                >
-                    <span className="shutter-inner" />
-                </button>
-            </div>
-
-            <div className="controls">
-                <button className="btn ghost" onClick={reset}>{t('calib.reset')}</button>
-                <button className="btn" onClick={() => navigate('solverEntry')}>{t('calib.skip')}</button>
-            </div>
+      {!done && status === 'ready' && (
+        <div className="scan-instruction">
+          <span className="face-badge" style={{ background: CUBE_COLORS[current], color: ON_COLOR[current] }}>
+            {t('color.' + current)}
+          </span>
+          <span>{t('calib.hint')}</span>
         </div>
-    );
+      )}
+
+      <div className="scan-controls">
+        <span className="icon-btn big invisible" />
+        <button className="shutter" onClick={capture} disabled={status !== 'ready' || done} aria-label={t('scan.shutter')}>
+          <span className="shutter-inner" />
+        </button>
+        <button className="icon-btn big text" onClick={back}>{t('calib.skip')}</button>
+      </div>
+    </div>
+  );
 }
+

@@ -1,10 +1,12 @@
-name: Android APK
+name: Android
 
-# Builds a debug APK on every push to main (downloadable from the run's artifacts)
-# and attaches it to a GitHub release when one is published.
+# Debug APK on every push and pull request (download it from the run's artifacts).
+# On a published GitHub release: a signed release APK + AAB are attached to the release
+# when the signing secrets are configured, otherwise the debug APK is attached.
 on:
   push:
     branches: [main]
+  pull_request:
   release:
     types: [published]
   workflow_dispatch:
@@ -12,40 +14,69 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
+          cache: gradle
 
       - run: npm ci
       - run: npm run build
-      - run: npx cap add android
       - run: npx cap sync android
-      - name: Assemble debug APK
+
+      - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk cube-solver-debug.apk
+      - name: Decode keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK + AAB
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: android
+        env:
+          RUBCUB_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          RUBCUB_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RUBCUB_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RUBCUB_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Collect outputs
+        run: |
+          mkdir -p out
+          VERSION=$(node -p "require('./package.json').version")
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/rubcub-$VERSION-debug.apk"
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/rubcub-$VERSION.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/rubcub-$VERSION.aab"
+          fi
+          ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cube-solver-debug
-          path: cube-solver-debug.apk
+          name: rubcub-android
+          path: out/*
 
       - name: Attach to release
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" cube-solver-debug.apk --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" out/* --clobber
