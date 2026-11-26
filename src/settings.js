@@ -5,7 +5,7 @@ const KEY = 'rubcub.settings';
 const DEFAULTS = { theme: 'system', speed: 'normal' };
 export const THEMES = ['system', 'dark', 'light'];
 export const SPEEDS = ['slow', 'normal', 'fast'];
-export const SPEED_MS = { slow: 900, normal: 520, fast: 260 };
+export const SPEED_MS = { slow: 1400, normal: 900, fast: 480 };
 
 function load() {
   try {

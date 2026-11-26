@@ -81,7 +81,6 @@ export default function App() {
       history.pushState({ depth: prev.length }, '');
       setStack([...prev, entry(screen, params)]);
     }
-    window.scrollTo(0, 0);
   }, []);
 
   const back = useCallback(() => {

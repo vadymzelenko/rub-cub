@@ -11,6 +11,11 @@ import '@fontsource/inter/800.css';
 import './index.css';
 
 applyTheme();
+
+// iOS Safari ignores user-scalable=no; block pinch-zoom gestures explicitly.
+for (const ev of ['gesturestart', 'gesturechange']) {
+  document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+}
 registerServiceWorker();
 
 createRoot(document.getElementById('root')).render(<App />);

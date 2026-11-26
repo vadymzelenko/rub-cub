@@ -3,7 +3,10 @@ import { useT } from '../i18n.jsx';
 import { useNav } from '../navigation.jsx';
 import { useInstall } from '../pwa.js';
 import Logo from '../components/Logo.jsx';
-import HeroCube from '../components/HeroCube.jsx';
+import { lazy, Suspense } from 'react';
+
+// The 3D hero pulls in three.js, so it loads after the first paint.
+const HeroCube = lazy(() => import('../components/HeroCube.jsx'));
 
 export default function HomeScreen() {
   const { t } = useT();
@@ -21,7 +24,9 @@ export default function HomeScreen() {
       </header>
 
       <section className="hero">
-        <HeroCube />
+        <Suspense fallback={<div className="hero-cube"><div className="hero-cube-glow" /><Logo size={110} className="hero-fallback" /></div>}>
+          <HeroCube />
+        </Suspense>
         <h1 className="hero-title">{t('home.title')}</h1>
         <p className="hero-sub">{t('home.subtitle')}</p>
       </section>

@@ -56,7 +56,7 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) 
  * Ref API: setState(facelets) — jump to a state (cancels animations);
  *          playMove(move, ms) — animate one move; calls are queued.
  */
-const Cube3D = forwardRef(function Cube3D({ initialState, autoRotate = false, className = '' }, ref) {
+const Cube3D = forwardRef(function Cube3D({ initialState, autoRotate = false, interactive = true, className = '' }, ref) {
   const mountRef = useRef(null);
   const api = useRef(null);
 
@@ -133,7 +133,7 @@ const Cube3D = forwardRef(function Cube3D({ initialState, autoRotate = false, cl
         vx *= 0.92; vy *= 0.92; dirty = true;
       }
       if (autoRotate && !dragging && now - lastInteract > 2500) {
-        orbit.rotation.y += 0.004; dirty = true;
+        orbit.rotation.y += 0.0035; dirty = true;
       }
       if (dirty) { renderer.render(scene, camera); dirty = false; }
       if (tickers.size || autoRotate || Math.abs(vx) > 0.0002 || Math.abs(vy) > 0.0002) request();
@@ -169,6 +169,7 @@ const Cube3D = forwardRef(function Cube3D({ initialState, autoRotate = false, cl
       invalidate();
     };
     const onUp = () => { dragging = false; lastInteract = performance.now(); request(); };
+    if (!interactive) el.style.pointerEvents = 'none';
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);
     el.addEventListener('pointerup', onUp);

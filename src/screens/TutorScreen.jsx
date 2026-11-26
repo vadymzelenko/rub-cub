@@ -42,7 +42,7 @@ export default function TutorScreen({ faceletState, scramble }) {
     }
   }, [faceletState, scramble]);
 
-  const player = useMovePlayer(cubeRef, start, moves, SPEED_MS[speed] || 520);
+  const player = useMovePlayer(cubeRef, start, moves, SPEED_MS[speed] || 900);
   useWakeLock(moves.length > 0);
 
   const total = moves.length;

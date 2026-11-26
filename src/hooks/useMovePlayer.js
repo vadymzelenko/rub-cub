@@ -78,7 +78,7 @@ export function useMovePlayer(cubeRef, start, moves, duration) {
     setPlaying(true);
     while (playingRef.current && stepRef.current < end) {
       if (!(await forward())) break;
-      await new Promise((r) => setTimeout(r, Math.min(220, durRef.current * 0.35)));
+      await new Promise((r) => setTimeout(r, Math.min(450, durRef.current * 0.4)));
     }
     playingRef.current = false;
     setPlaying(false);

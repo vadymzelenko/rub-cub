@@ -18,7 +18,7 @@ export default function SolveScreen({ faceletState }) {
   const cubeRef = useRef(null);
   const [moves, setMoves] = useState(null);
   const [error, setError] = useState('');
-  const player = useMovePlayer(cubeRef, faceletState, moves, SPEED_MS[speed] || 520);
+  const player = useMovePlayer(cubeRef, faceletState, moves, SPEED_MS[speed] || 900);
 
   useWakeLock(!!moves?.length);
 
